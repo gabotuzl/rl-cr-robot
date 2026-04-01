@@ -1,2 +1,24 @@
 - change the cost function to penalize depending on where the rest position is and what the target is. This will force the model to 
   move the robot instead of choosing to average out rewards by doing nothing.
+
+Keep:
+  Distance reward
+  Best distance bonus
+  tip speed penalty
+Verify:
+  Antagonist penalty cancels out actions?
+  node speeds penalty, gate it to near-target only (nodes will move when getting to target)
+  Correct direction bonus ? Could be right. Should be applied if the tip is far from the target (to not conflict with tip speed penalty)
+Choose between:
+  Tensions penalty (probably this one) OR Tendon switching penalty
+
+Tensions penalty:
+tensions_penalty       → penalizes large Δtension between steps
+tendon_switching_penalty → penalizes turning tendons ON/OFF between steps
+
+Turning a tendon from 0 → any value is already a large Δtension, so tensions_penalty already catches tendon switching. Having both means 
+switching tendons gets double-penalized, which may be too strong and could cause the agent to freeze its actions entirely — 
+potentially explaining why you need the harsh -10.0 all-zeros penalty as a counterweight.
+
+Recommendation: Pick one. tensions_penalty is more nuanced since it scales with the magnitude of change. 
+If you keep only that, you can likely also soften or remove the -10.0 all-zeros penalty in tendon_switching_penalty.

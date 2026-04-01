@@ -88,42 +88,42 @@ def correct_direction_bonus(target_position, current_position, tip_velocity_vect
 
     return reward
 
-def compute_reward(self, dist, tip_velocity, threshold=0.08):
+def compute_reward(dist, tip_speed, action_curr, action_prev, node_speeds, best_dist, num_tendons):
 
     if dist < threshold-0.00134: # Reward is piecewise and C1 continuous to allow smooth gradient
         reward = 6000*(dist-threshold)**2 # Quadratic reward when the dist=0.048 (a little lower than threshold)
-        reward += min(2.5, 20*max(0, (threshold - self.tip_speed))) # Reward for stable movement in the desired tip position
+        reward += min(2.5, 20*max(0, (threshold - tip_speed))) # Reward for stable movement in the desired tip position
     else:
         reward = -16.8*dist + 1.332262 # Linear function that share same slope as quadratic function above at dist=0.07866
 
-    antagonist_penalty = self.antagonist_penalty(self.NN_tendon_tensions) # Penalty for activating opposite tendons of the same length
-    reward += antagonist_penalty
+    antagonist_penalty_value = antagonist_penalty(action_history[-1]) # Penalty for activating opposite tendons of the same length
+    reward += antagonist_penalty_value
 
-    tensions_penalty = self.tensions_penalty(self.action_history[-2], self.action_history[-1], self.num_tendons) # Penalty for having drastic tension changes
-    reward += tensions_penalty
+    tensions_penalty_value = tensions_penalty(action_history[-2], action_history[-1], num_tendons) # Penalty for having drastic tension changes
+    reward += tensions_penalty_value
     
-    node_speeds_penalty = self.node_speeds_penalty(self.node_speeds) # Penalty for having velocities in the nodes which are not the tip (to discourage erratic movements of the rest of the rod)
-    reward += node_speeds_penalty
+    node_speeds_penalty_value = node_speeds_penalty(node_speeds) # Penalty for having velocities in the nodes which are not the tip (to discourage erratic movements of the rest of the rod)
+    reward += node_speeds_penalty_value
 
-    tendon_switching_penalty = self.tendon_switching_penalty(self.action_history[-2], self.action_history[-1], self.num_tendons)
-    reward += tendon_switching_penalty # Penalty for switching tendons ON/OFF, also penalizing heavily a zero vector for the action
+    tendon_switching_penalty_value = tendon_switching_penalty(action_history[-2], action_history[-1], num_tendons)
+    reward += tendon_switching_penalty_value # Penalty for switching tendons ON/OFF, also penalizing heavily a zero vector for the action
 
-    tip_speed_penalty = tip_speed_penalty(tip_speed) # Penalty for having large tip speed (discourage wiggling and quick movements)
-    reward += tip_speed_penalty
+    tip_speed_penalty_value = tip_speed_penalty(tip_speed) # Penalty for having large tip speed (discourage wiggling and quick movements)
+    reward += tip_speed_penalty_value
 
-    best_distance_bonus = self.best_distance_bonus(dist, self.best_distance, k_factor=5.0)
-    reward += best_distance_bonus
+    best_distance_bonus_value = best_distance_bonus(dist, best_distance, k_factor=5.0)
+    reward += best_distance_bonus_value
 
-    # correct_direction_bonus = self.correct_direction_bonus(self.target_position, self.state, self.tip_velocity, k_factor=0.2)
-    # reward += correct_direction_bonus
-    # print("correct direction bonus: ", correct_direction_bonus, '\n')
+    # correct_direction_bonus_value = correct_direction_bonus(target_position, state, tip_velocity, k_factor=0.2)
+    # reward += correct_direction_bonus_value
+    # print("correct direction bonus: ", correct_direction_bonus_value, '\n')
 
 
-    # print("antagonist penalty: ",antagonist_penalty)
-    # print("tensions penalty: ", tensions_penalty)
-    # print("node velocities penalty: ", node_speeds_penalty)
-    # print("tendon switching penalty: ", tendon_switching_penalty)
-    # print("tip speed penalty: ", tip_speed_penalty)
+    # print("antagonist penalty: ",antagonist_penalty_value)
+    # print("tensions penalty: ", tensions_penalty_value)
+    # print("node velocities penalty: ", node_speeds_penalty_value)
+    # print("tendon switching penalty: ", tendon_switching_penalty_value)
+    # print("tip speed penalty: ", tip_speed_penalty_value)
     # print("dist: ",dist)
     # print("total reward: ", reward, "\n")
 
