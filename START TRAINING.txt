@@ -1,0 +1,13 @@
+COMENZAR ENTRENAMIENTO (copiar y pegar en powershell):
+./rl_env/Scripts/activate; cd ./rl_cr_robot/; python ./cr_environment.py
+
+
+
+COMENZAR TENSORBOARD (copiar y pegar en otra ventana de powershell)
+./rl_env/Scripts/activate; cd ./rl_cr_robot/; tensorboard --logdir=./ppo_tensorboard
+
+
+
+Para ver los graficos, primero hay que ejecutar lo de arriba, 
+luego hay que abrir chrome y acceder al localhost, lo cual se hace
+al entrar al siguiente URL: http://localhost:6006/?pinnedCards=%5B%7B%22plugin%22%3A%22scalars%22%2C%22tag%22%3A%22train%2Fexplained_variance%22%7D%2C%7B%22plugin%22%3A%22scalars%22%2C%22tag%22%3A%22rollout%2Fep_rew_mean%22%7D%5D#timeseries

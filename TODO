@@ -1,0 +1,2 @@
+- change the cost function to penalize depending on where the rest position is and what the target is. This will force the model to 
+  move the robot instead of choosing to average out rewards by doing nothing.
