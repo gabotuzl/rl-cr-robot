@@ -1,5 +1,3 @@
-
-# config.py
 from dataclasses import dataclass, field
 from typing import List
 
@@ -21,9 +19,9 @@ class EnvConfig:
 
 @dataclass
 class PPOConfig:
-    n_envs: int = 32
+    n_envs: int = 1
     total_timesteps: int = 20_500_000
-    n_steps: int = 1024
+    n_steps: int = 2048
     batch_size: int = 4096
     n_epochs: int = 6
     learning_rate: float = 4e-5

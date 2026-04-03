@@ -6,7 +6,7 @@ from elastica.modules import (
     CallBacks,
     Damping
 )
-
+from elastica.callback_functions import CallBackBaseClass
 
 # Simulator class for the rod
 class RodSimulator(

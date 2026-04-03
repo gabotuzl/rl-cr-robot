@@ -3,7 +3,7 @@ import os
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-from env import cr_env
+from env.cr_env import cr_env
 from config import CONFIG
 
 

@@ -3,15 +3,18 @@ import glob
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
-from env import cr_env
-from training.utils import make_env
+
+from common.env_utils import make_env
 from config import CONFIG
 from training.callbacks import make_training_callbacks
 
 def run_training(from_scratch):
-    print(f"Creating {CONFIG.ppo.num_envs} environments...")
-    env = SubprocVecEnv([make_env(i) for i in range(CONFIG.ppo.num_envs)])
+    print(f"Creating {CONFIG.ppo.n_envs} environments...")
+    env = SubprocVecEnv([make_env(i) for i in range(CONFIG.ppo.n_envs)])
     env = VecNormalize(env, norm_obs=True, norm_reward=True)
+
+    checkpoint_dir = CONFIG.paths.checkpoint_dir
+
 
     if from_scratch is True:
         if os.path.exists(checkpoint_dir):
@@ -50,7 +53,6 @@ def run_training(from_scratch):
 
     if from_scratch is False:
         print("Starting from previous checkpoint...")
-        checkpoint_dir = CONFIG.paths.checkpoint_dir
         model_path = None
 
         if os.path.exists(checkpoint_dir):

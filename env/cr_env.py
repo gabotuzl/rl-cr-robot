@@ -1,18 +1,28 @@
 from sim.sim_params import ROD_PARAMS, TENDON_PARAMS, SIM_PARAMS
+from config import CONFIG
 
 from gymnasium import Env, spaces
 from gymnasium.spaces import Discrete, Box
 import numpy as np 
 import random
 from datetime import datetime
-from training.utils import write_errorfile, get_state
-from reward import compute_reward
+from common.utils import write_errorfile, get_state
+from env.reward import compute_reward
+from sim.rod_simulator import RodSimulator, MyCallBack
 
+from elastica.modules import (
+    BaseSystemCollection,
+    Connections,
+    Constraints,
+    Forcing,
+    CallBacks,
+    Damping
+)
 from elastica._calculus import _isnan_check
 from elastica.rod.cosserat_rod import CosseratRod
 from elastica.boundary_conditions import OneEndFixedBC
 from elastica.external_forces import GravityForces
-from sim import OctoTendonForces
+from sim.OctoTendonForces import OctoTendonForces
 from elastica.dissipation import AnalyticalLinearDamper
 from elastica.callback_functions import CallBackBaseClass
 from elastica.timestepper.symplectic_steppers import PositionVerlet
@@ -66,6 +76,7 @@ class cr_env(Env):
         self.action_history = np.zeros((CONFIG.env.action_history_len,4)) # Previous actions, all with 4 components each
         self.reward_history = np.zeros(CONFIG.env.reward_history_len) # Previous rewards
         self.state_history = np.zeros((CONFIG.env.state_history_len,3)) # Previous states, all with 3 components each
+        self.NN_tendon_tensions = np.zeros(8) # The tendon tensions (action)
         self.state = np.zeros(3) # Initial position
         self.timestamp_start = datetime.now()
         self.StatefulStepper = PositionVerlet() # Symplectic ime integration scheme
@@ -89,6 +100,90 @@ class cr_env(Env):
             node_numbers.append(node_spacer+prev_node)
             prev_node = node_numbers[-1]
         self.node_numbers = np.array(node_numbers)
+
+        # Creating the rod simulator and saving initial simulator states for later resetting
+        self.create_simulator()
+
+        self.initial_position_collection = self.rod_object.position_collection.copy()
+        self.initial_director_collection = self.rod_object.director_collection.copy()
+        self.initial_lengths = self.rod_object.lengths.copy()
+        self.initial_tangents = self.rod_object.tangents.copy()
+
+    def create_simulator(self):
+
+        # Simulation parameters
+        rendering_fps = SIM_PARAMS.rendering_fps
+        step_skip = SIM_PARAMS.step_skip
+
+        # Creating the simulator 
+        self.rod_simulator = RodSimulator()
+
+        # Creating rod object
+        self.rod_object = CosseratRod.straight_rod(
+            n_elements=ROD_PARAMS.n_elements,
+            start=np.array(ROD_PARAMS.start),
+            direction=np.array(ROD_PARAMS.direction),
+            normal=np.array(ROD_PARAMS.normal),
+            base_length=ROD_PARAMS.base_length,
+            base_radius=ROD_PARAMS.base_radius,
+            density=ROD_PARAMS.density,
+            youngs_modulus=ROD_PARAMS.youngs_modulus,
+            shear_modulus=ROD_PARAMS.shear_modulus,
+        )
+
+        # Add rod to simulator
+        self.rod_simulator.append(self.rod_object)
+
+        # Constrain rod
+        self.rod_simulator.constrain(self.rod_object).using(
+            OneEndFixedBC,                  # Displacement BC being applied
+            constrained_position_idx=(0,),  # Node number to apply BC
+            constrained_director_idx=(0,)   # Element number to apply BC
+        )
+
+        # Adding tendon forcing to rod
+        self.rod_simulator.add_forcing_to(self.rod_object).using(
+            OctoTendonForces,
+            vertebra_height_long = TENDON_PARAMS.vertebra_height_long,
+            num_vertebrae_long = TENDON_PARAMS.num_vertebrae_long,
+            first_vertebra_node_long = TENDON_PARAMS.first_vertebra_node_long,
+            final_vertebra_node_long = TENDON_PARAMS.final_vertebra_node_long,
+            vertebra_mass_long = TENDON_PARAMS.vertebra_mass_long,
+            vertebra_height_short = TENDON_PARAMS.vertebra_height_short,
+            num_vertebrae_short = TENDON_PARAMS.num_vertebrae_short,
+            first_vertebra_node_short = TENDON_PARAMS.first_vertebra_node_short,
+            final_vertebra_node_short = TENDON_PARAMS.final_vertebra_node_short,
+            vertebra_mass_short = TENDON_PARAMS.vertebra_mass_short,
+            tendon_tensions = self.NN_tendon_tensions,
+            n_elements = self.n_elements,
+        )
+
+        # Adding gravity forces to rod
+        self.rod_simulator.add_forcing_to(self.rod_object).using(
+            GravityForces,
+            acc_gravity = SIM_PARAMS.gravity_vector
+        )
+
+        # Adding damping effects to rod
+        self.rod_simulator.dampen(self.rod_object).using(
+            AnalyticalLinearDamper,
+            damping_constant=SIM_PARAMS.damping_constant,
+            time_step = self.time_step
+        )
+
+        # Create dictionary to hold data from callback function
+        self.callback_data_rod_object= defaultdict(list)
+
+        # Add MyCallBack to SystemSimulator for each rod telling it how often to save data (step_skip)
+        self.rod_simulator.collect_diagnostics(self.rod_object).using(
+            MyCallBack, step_skip=step_skip, callback_params=self.callback_data_rod_object)
+
+        self.rod_simulator.finalize()
+
+        # do_step, stages_and_updates will be used in step function
+        self.do_step, self.stages_and_updates = extend_stepper_interface(
+            self.StatefulStepper, self.rod_simulator
+        )
 
     def nan_detected_function(self):
         # Handles the appearance of nan values in the simulation. Handles this, reports it, and finishes episode.
@@ -119,11 +214,9 @@ class cr_env(Env):
         self.action_history = np.vstack((self.action_history[1:], action)) # Adds new action at -1 and removes oldest at 0
 
         # Here is where the NN chooses an action to influence the system, and this action is taken by the simulator
-        self.NN_tendon_tensions = action
-
-        # Updating the tensions on the tendons by accessing the QuadTendonForces object in the simulator
-        self.rod_simulator._ext_forces_torques[0][1].update_tendon_tension(self.NN_tendon_tensions)
-        
+        # The [:] ensures that the underlying array in memory is changed, thus the instantiated Forcing class can use this as well since it checks that 
+        # point in memory as well.
+        self.NN_tendon_tensions[:] = action
 
         # Do multiple time step of simulation for (one learning step)
         for _ in range(self.steps_per_learn_update):
@@ -213,79 +306,26 @@ class cr_env(Env):
         # Resetting the tendon tensions to zero for all of them
         self.NN_tendon_tensions = np.zeros(8)
 
-        # Simulation parameters
-        rendering_fps = SIM_PARAMS.rendering_fps
-        step_skip = SIM_PARAMS.step_skip
+        # Resetting kinematic state
+        self.rod_object.position_collection[:] = self.initial_position_collection
+        self.rod_object.velocity_collection[:] = 0.0
+        self.rod_object.acceleration_collection[:] = 0.0
+        self.rod_object.director_collection[:] = self.initial_director_collection
+        self.rod_object.omega_collection[:] = 0.0
+        self.rod_object.alpha_collection[:] = 0.0
 
-        # Creating the simulator 
-        self.rod_simulator = RodSimulator()
+        # Resetting forces/torques
+        self.rod_object.internal_forces[:] = 0.0
+        self.rod_object.internal_torques[:] = 0.0
+        self.rod_object.external_forces[:] = 0.0
+        self.rod_object.external_torques[:] = 0.0
 
-        # Creating rod object
-        self.rod_object = CosseratRod.straight_rod(
-            n_elements=ROD_PARAMS.n_elements,
-            start=np.array(ROD_PARAMS.start),
-            direction=np.array(ROD_PARAMS.direction),
-            normal=np.array(ROD_PARAMS.normal),
-            base_length=ROD_PARAMS.base_length,
-            base_radius=ROD_PARAMS.base_radius,
-            density=ROD_PARAMS.density,
-            youngs_modulus=ROD_PARAMS.youngs_modulus,
-            shear_modulus=ROD_PARAMS.shear_modulus,
-        )
-
-        # Add rod to simulator
-        self.rod_simulator.append(self.rod_object)
-
-        # Constrain rod
-        self.rod_simulator.constrain(self.rod_object).using(
-            OneEndFixedBC,                  # Displacement BC being applied
-            constrained_position_idx=(0,),  # Node number to apply BC
-            constrained_director_idx=(0,)   # Element number to apply BC
-        )
-
-        # Adding tendon forcing to rod
-        self.rod_simulator.add_forcing_to(self.rod_object).using(
-            OctoTendonForces,
-            vertebra_height_long = TENDON_PARAMS.vertebra_height_long,
-            num_vertebrae_long = TENDON_PARAMS.num_vertebrae_long,
-            first_vertebra_node_long = TENDON_PARAMS.first_vertebra_node_long,
-            final_vertebra_node_long = TENDON_PARAMS.final_vertebra_node_long,
-            vertebra_mass_long = TENDON_PARAMS.vertebra_mass_long,
-            vertebra_height_short = TENDON_PARAMS.vertebra_height_short,
-            num_vertebrae_short = TENDON_PARAMS.num_vertebrae_short,
-            first_vertebra_node_short = TENDON_PARAMS.first_vertebra_node_short,
-            final_vertebra_node_short = TENDON_PARAMS.final_vertebra_node_short,
-            vertebra_mass_short = TENDON_PARAMS.vertebra_mass_short,
-            tendon_tensions = self.NN_tendon_tensions,
-            n_elements = self.n_elements,
-        )
-
-        # Adding gravity forces to rod
-        self.rod_simulator.add_forcing_to(self.rod_object).using(
-            GravityForces,
-            acc_gravity = SIM_PARAMS.gravity_vector
-        )
-
-        # Adding damping effects to rod
-        self.rod_simulator.dampen(self.rod_object).using(
-            AnalyticalLinearDamper,
-            damping_constant=SIM_PARAMS.damping_constant,
-            time_step = self.time_step
-        )
-
-        # Create dictionary to hold data from callback function
-        self.callback_data_rod_object= defaultdict(list)
-
-        # Add MyCallBack to SystemSimulator for each rod telling it how often to save data (step_skip)
-        self.rod_simulator.collect_diagnostics(self.rod_object).using(
-            MyCallBack, step_skip=step_skip, callback_params=self.callback_data_rod_object)
-
-        self.rod_simulator.finalize()
-
-        # do_step, stages_and_updates will be used in step function
-        self.do_step, self.stages_and_updates = extend_stepper_interface(
-            self.StatefulStepper, self.rod_simulator
-        )
+        # Resetting derived geometric quantities (depend on position/directors)
+        self.rod_object.lengths[:] = self.initial_lengths
+        self.rod_object.tangents[:] = self.initial_tangents
+        self.rod_object.dilatation[:] = 1.0
+        self.rod_object.voronoi_dilatation[:] = 1.0
+        self.rod_object.dilatation_rate[:] = 0.0
 
         # Resetting the episode score to zero
         self.score = 0.0
