@@ -19,7 +19,7 @@ class EnvConfig:
 
 @dataclass
 class PPOConfig:
-    n_envs: int = 1
+    n_envs: int = 12
     total_timesteps: int = 20_500_000
     n_steps: int = 2048
     batch_size: int = 4096

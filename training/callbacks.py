@@ -3,10 +3,9 @@ from stable_baselines3.common.callbacks import (
 )
 
 class LoggerCallback(BaseCallback):
-    def __init__(self, check_freq: int, verbose=1):
+    def __init__(self, log_freq: int, verbose=1):
         super().__init__(verbose)
-        self.check_freq = check_freq
-        self.step_counter = 0
+        self.log_freq = log_freq
         self.update_counter = 0
 
     def _on_step(self) -> bool:
@@ -14,14 +13,14 @@ class LoggerCallback(BaseCallback):
             print(
                 f"Steps: {self.n_calls:>10,} | "
                 f"Total: {self.num_timesteps:>10,} | "
-                f"Updates: {self._update_counter}"
+                f"Updates: {self.update_counter}"
             )
         return True
 
     def _on_rollout_end(self) -> None:
         """Called after each full rollout collection — i.e., each PPO update."""
-        self._update_counter += 1
-        print(f"\n---- PPO UPDATE #{self._update_counter} ----\n")
+        self.update_counter += 1
+        print(f"\n---- PPO UPDATE #{self.update_counter} ----\n")
 
 
 def make_checkpoint_callback(save_path: str = "./checkpoints/", save_freq: int = 20_000) -> CheckpointCallback:

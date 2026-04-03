@@ -137,7 +137,7 @@ class OctoTendonForces(NoForces):
 
         # Initializing unit_norm_vector_array to store the unit normed vectors that describe the global orientation of the forces in each vertebra
         n = len(vertebra_nodes)
-        unit_norm_vector_array = np.zeros((4, len(n+1), 3), dtype=np.float64) # n+1 to account for fixed node
+        unit_norm_vector_array = np.zeros((4, n+1, 3), dtype=np.float64) # n+1 to account for fixed node
 
         for k in range(4):
             for i in range(n):
@@ -159,7 +159,7 @@ class OctoTendonForces(NoForces):
                 h = vertebra_heights_vector[k]
 
                 # Calculating relative position vector between vertebrae, considering the vertebra height
-                delta_vector = (next_node + next_R.T @ h) - (current_node + current_R.T @ h)
+                delta_vector = (next_node + np.ascontiguousarray(next_R.T) @ h) - (current_node + np.ascontiguousarray(current_R.T) @ h)
                 # Calculating the unit-normed vector based on the differences calculated in the previous step
                 norm = np.sqrt(delta_vector[0]**2 + delta_vector[1]**2 + delta_vector[2]**2)
                 unit_norm_vector_array[k, i] = delta_vector / norm      
@@ -194,14 +194,12 @@ class OctoTendonForces(NoForces):
 
         apply_torque = np.zeros((3,n_elements))
         
+        # Goes through vertebra nodes to calculate torques for them
         for k in range(4):
-            # Goes through vertebra nodes to calculate torques for them
-            # Creating torque data set for storage
-            torque_data = np.zeros((len(vertebra_nodes), 3),dtype=np.float64)
             for i in range(len(vertebra_nodes)):
 
                 # Cross product between the vertebra height vector and the local force vector due to the tendons, to obtain the tendon torque for that vertebra
-                torque_data[i] = np.cross(vertebra_heights_vector[k], transformed_force_data[k][i])
+                torque = np.cross(vertebra_heights_vector[k], transformed_force_data[k][i])
             
                 node_idx = vertebra_nodes[i] - 1  # converting to 0-indexed
                 apply_torque[:, node_idx] += torque

@@ -213,3 +213,4 @@ __marimo__/
 ppo_tensorboard/
 20_test_runs_new/
 checkpoints/
+logs/

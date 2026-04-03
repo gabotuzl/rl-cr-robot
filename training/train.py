@@ -46,7 +46,7 @@ def run_training(from_scratch):
             tensorboard_log=CONFIG.paths.tensorboard_dir,
         )
 
-        model.learn(total_timesteps=CONFIG.ppo.total_timesteps, callback=make_training_callbacks)
+        model.learn(total_timesteps=CONFIG.ppo.total_timesteps, callback=make_training_callbacks())
         model.save(CONFIG.paths.model_save_name)
         env.save(CONFIG.paths.vecnorm_save_name)
 

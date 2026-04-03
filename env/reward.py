@@ -88,7 +88,7 @@ def correct_direction_bonus(target_position, current_position, tip_velocity_vect
 
     return reward
 
-def compute_reward(dist, tip_speed, action_curr, action_prev, node_speeds, best_dist, num_tendons):
+def compute_reward(dist, tip_speed, action_curr, action_prev, node_speeds, best_dist, num_tendons, threshold=0.08):
 
     if dist < threshold-0.00134: # Reward is piecewise and C1 continuous to allow smooth gradient
         reward = 6000*(dist-threshold)**2 # Quadratic reward when the dist=0.048 (a little lower than threshold)
@@ -96,22 +96,22 @@ def compute_reward(dist, tip_speed, action_curr, action_prev, node_speeds, best_
     else:
         reward = -16.8*dist + 1.332262 # Linear function that share same slope as quadratic function above at dist=0.07866
 
-    antagonist_penalty_value = antagonist_penalty(action_history[-1]) # Penalty for activating opposite tendons of the same length
+    antagonist_penalty_value = antagonist_penalty(action_curr) # Penalty for activating opposite tendons of the same length
     reward += antagonist_penalty_value
 
-    tensions_penalty_value = tensions_penalty(action_history[-2], action_history[-1], num_tendons) # Penalty for having drastic tension changes
+    tensions_penalty_value = tensions_penalty(action_prev, action_curr, num_tendons) # Penalty for having drastic tension changes
     reward += tensions_penalty_value
     
     node_speeds_penalty_value = node_speeds_penalty(node_speeds) # Penalty for having velocities in the nodes which are not the tip (to discourage erratic movements of the rest of the rod)
     reward += node_speeds_penalty_value
 
-    tendon_switching_penalty_value = tendon_switching_penalty(action_history[-2], action_history[-1], num_tendons)
+    tendon_switching_penalty_value = tendon_switching_penalty(action_prev, action_curr, num_tendons)
     reward += tendon_switching_penalty_value # Penalty for switching tendons ON/OFF, also penalizing heavily a zero vector for the action
 
     tip_speed_penalty_value = tip_speed_penalty(tip_speed) # Penalty for having large tip speed (discourage wiggling and quick movements)
     reward += tip_speed_penalty_value
 
-    best_distance_bonus_value = best_distance_bonus(dist, best_distance, k_factor=5.0)
+    best_distance_bonus_value = best_distance_bonus(dist, best_dist, k_factor=5.0)
     reward += best_distance_bonus_value
 
     # correct_direction_bonus_value = correct_direction_bonus(target_position, state, tip_velocity, k_factor=0.2)
