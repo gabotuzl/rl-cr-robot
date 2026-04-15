@@ -4,3 +4,4 @@ pyelastica
 numpy
 numba
 matplotlib
+moviepy

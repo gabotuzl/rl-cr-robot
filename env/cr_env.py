@@ -53,19 +53,25 @@ class cr_env(Env):
         self.action_space = spaces.Box(low=0, high=self.max_tension, shape=(self.num_tendons,), dtype=np.float64)
 
         # Observation space
-        # - The XYZ position history of the 20 previous tip positions (60 values)
-        # - The velocity vector of the tip (3 values)
+        # - The XYZ position history of the 5 previous tip positions (15 values)
+        # - The previous 5 actions (8 components each), intended for smoother control (40 values)
+        # - The speeds of 10 nodes on the rod, not counting the tip (10 values)
+        # - The positions of the same 10 nodes on the rod, not counting the tip (30 values)
         # - The XYZ position of the target (3 values)
         # - The XYZ self.delta of the tip position of the target and the current state (3 values)
-        # - The previous 20 actions (8 components each), intended for smoother control (160 values)
-        # - The velocities of 10 nodes on the rod, not counting the tip (10 values)
+        # - The velocity vector of the tip (3 values)
         # - The speed of the rod tip (1 value)
+        n_positions = 3*CONFIG.env.action_history_len
+        n_actions = 8*CONFIG.env.action_history_len
+        node_speeds_checked = CONFIG.env.nodes_checked 
+        node_pos_checked = 3*CONFIG.env.nodes_checked
 
-        n_small = 80 # Number of obs values which range from -1.5 to 1.5
-        n_big = 160 # Number obs values which range from 0 to 20 (action history only)
-        low = np.array([-1.5]*n_small + [0.0]*n_big, dtype=np.float64)
-        high = np.array([1.5]*n_small + [20.0]*n_big, dtype=np.float64)
-        self.observation_space = spaces.Box(low=low, high=high, shape=(240,), dtype=np.float64)
+        obs_size = n_positions + n_actions + node_speeds_checked + node_pos_checked + 3 + 3 + 3 + 1
+
+        # VecNormalize handles obs bounds, which is why they are not constrained
+        low  = np.full(obs_size, -np.inf, dtype=np.float64)
+        high = np.full(obs_size,  np.inf, dtype=np.float64)
+        self.observation_space = spaces.Box(low=low, high=high, shape=(obs_size,), dtype=np.float64)
 
         # Random target 
         self.target_position = np.array([np.random.uniform(self.L - self.X_variation, self.L), 
@@ -74,7 +80,6 @@ class cr_env(Env):
         
         # Setting up counters, summers, and state variables
         self.action_history = np.zeros((CONFIG.env.action_history_len,4)) # Previous actions, all with 4 components each
-        self.reward_history = np.zeros(CONFIG.env.reward_history_len) # Previous rewards
         self.state_history = np.zeros((CONFIG.env.state_history_len,3)) # Previous states, all with 3 components each
         self.NN_tendon_tensions = np.zeros(8) # The tendon tensions (action)
         self.state = np.zeros(3) # Initial position
@@ -83,13 +88,12 @@ class cr_env(Env):
 
         self.step_count = 0
         self.score = 0.0
-        self.step_counter = 0
         self.total_step_count = 0
         self.nan_counter = 0
         self.out_of_bounds_counter = 0
         self.max_steps_counter = 0
 
-        # Setting nodes whose speeds will be checked as an obs
+        # Setting nodes whose speeds and pos will be checked as an obs
         self.n_elements = ROD_PARAMS.n_elements
         nodes_checked = CONFIG.env.nodes_checked
         prev_node = -8
@@ -192,11 +196,10 @@ class cr_env(Env):
         self.nan_counter += 1
 
         reward = -1.0 # Minimum normalized reward allowed
-        self.reward_history = np.append(self.reward_history[1:], reward) # Adds new action at -1 and removes oldest at 0
 
         # Save information to a text file
         write_errorfile(self, "nan", self.timestamp_start, self.state_history, self.target_position, self.delta, self.tip_velocity, self.action_history, 
-                        self.step_count, self.reward_history, self.callback_data_rod_object)
+                        self.step_count, self.callback_data_rod_object)
             
         self.delta = np.array([-self.L, -self.L, -self.L])
         self.state = self.target_position - self.delta
@@ -204,7 +207,14 @@ class cr_env(Env):
         self.state_history = np.vstack((self.state_history[1:], self.state)) # Adds new state at -1 and removes oldest at 0
 
 
-        obs = np.concatenate((self.state_history.flatten(), self.target_position, self.delta, self.tip_velocity, self.tip_speed, self.node_speeds, self.action_history.flatten()))
+        obs = np.concatenate((self.state_history.flatten(), 
+                              self.target_position, 
+                              self.delta, 
+                              self.tip_velocity, 
+                              self.tip_speed, 
+                              self.node_speeds,
+                              self.node_positions, 
+                              self.action_history.flatten()))
         done = True
         info = {'termination_reason': 'nan_detected'}
 
@@ -228,9 +238,11 @@ class cr_env(Env):
                 self.time_step,
             )
 
-        self.state, self.tip_velocity, self.tip_speed, self.node_speeds = get_state(np.array(self.rod_object.position_collection[:,-1].tolist()),
-                                                                                             self.rod_object.velocity_collection, self.node_numbers, 
-                                                                                             self.n_elements)
+        self.state, self.tip_velocity, self.tip_speed, self.node_speeds, self.node_positions = get_state(np.array(self.rod_object.position_collection[:,-1].tolist()),
+                                                                                                                  self.rod_object.velocity_collection, 
+                                                                                                                  self.rod_object.position_collection,
+                                                                                                                  self.node_numbers, 
+                                                                                                                  self.n_elements)
         done = False
         reward = 0
 
@@ -240,19 +252,9 @@ class cr_env(Env):
         # Runs nan detection reporting and wraps up episode        
         if invalid_values_condition == True:
             self.nan_detected_function()
-
-        # Sets the state bounds to be in a 3D cube of (L*1.1*2) dimensions
-        if np.any(abs(self.state) > self.L*1.1):   
-            reward += -0.1 # Penalization
-            done = False
-            self.out_of_bounds_counter += 1
-
-            # Save information to a text file
-            write_errorfile(self, "oob", self.timestamp_start, self.state_history, self.target_position, self.delta, self.tip_velocity, self.action_history, 
-                            self.step_count, self.reward_history, self.callback_data_rod_object)
         
-        
-        if self.step_count > self.max_steps:   # Maximum amount of steps reached
+        # Maximum amount of steps reached
+        if self.step_count > self.max_steps:   
             done = True
             info = {'termination_reason': 'max_steps'}
             self.max_steps_counter += 1
@@ -280,8 +282,6 @@ class cr_env(Env):
 
         self.state_history = np.vstack((self.state_history[1:], self.state)) # Adds new state at -1 and removes oldest at 0
         self.best_distance = min(current_distance, self.best_distance)
-
-        self.reward_history = np.append(self.reward_history[1:], reward) # Adds new action at -1 and removes oldest at 0
 
         obs = np.concatenate((self.state_history.flatten(), self.target_position, self.delta, self.tip_velocity, np.array([self.tip_speed]), self.node_speeds, self.action_history.flatten()))
 
@@ -336,19 +336,26 @@ class cr_env(Env):
         self.time_tracker = np.float64(0.0)
         self.previous_action = None
         
-        self.state, self.tip_velocity, self.tip_speed, self.node_speeds = get_state(np.array(self.rod_object.position_collection[:,-1].tolist()),
-                                                                                             self.rod_object.velocity_collection, self.node_numbers,
-                                                                                             self.n_elements)
+        self.state, self.tip_velocity, self.tip_speed, self.node_speeds, self.node_positions = get_state(np.array(self.rod_object.position_collection[:,-1].tolist()),
+                                                                                                                  self.rod_object.velocity_collection,
+                                                                                                                  self.rod_object.position_collection,
+                                                                                                                  self.node_numbers,
+                                                                                                                  self.n_elements)
         self.delta = self.target_position - self.state
         self.best_distance = np.linalg.norm(self.delta)
         
         self.action_history = np.zeros((CONFIG.env.action_history_len,8))
         self.state_history = np.zeros((CONFIG.env.state_history_len,3))
-        self.reward_history = np.zeros(CONFIG.env.reward_history_len)
 
 
-        obs = np.concatenate((self.state_history.flatten(), self.target_position, self.delta, self.tip_velocity, np.array([self.tip_speed]), self.node_speeds, self.action_history.flatten()))
-
+        obs = np.concatenate((self.state_history.flatten(), 
+                              self.target_position, 
+                              self.delta, 
+                              self.tip_velocity, 
+                              self.tip_speed, 
+                              self.node_speeds,
+                              self.node_positions, 
+                              self.action_history.flatten()))
         info = {'Reset the environment'}
 
         return obs, info

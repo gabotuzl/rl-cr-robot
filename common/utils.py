@@ -2,7 +2,7 @@ from numba import njit
 import numpy as np
 
 def write_errorfile(self, error_type, timestamp_start, state_history, target_position, delta, tip_velocity, action_history, 
-                    step_count, reward_history, callback_data_rod_object):
+                    step_count, callback_data_rod_object):
     with open(f"logs/{error_type}_log.txt", "a") as f:
         timestamp_now = datetime.now()
         time_diff = str(timestamp_now - timestamp_start)
@@ -14,7 +14,6 @@ def write_errorfile(self, error_type, timestamp_start, state_history, target_pos
         f.write(f"Tip velocity: {tip_velocity}\n")
         f.write(f"Action History: {action_history.tolist()}\n")
         f.write(f"Step Count: {step_count}\n")
-        f.write(f"Reward history: {reward_history}\n")
 
         position_array = np.array(callback_data_rod_object['position'])
         f.write(f"Position history shape: {position_array.shape}\n")
@@ -22,7 +21,7 @@ def write_errorfile(self, error_type, timestamp_start, state_history, target_pos
         f.write("\n\n")
 
 @njit(cache=True)
-def get_state(tip_position, velocity_collection, node_numbers, n_elements):
+def get_state(tip_position, velocity_collection, position_collection, node_numbers, n_elements):
 
     # Getting the velocity of the tip 
     tip_velocity = velocity_collection[:, -1]
@@ -35,4 +34,10 @@ def get_state(tip_position, velocity_collection, node_numbers, n_elements):
         vel = velocity_collection[:, node]
         node_speeds[i] = np.sqrt(vel[0]**2 + vel[1]**2 + vel[2]**2)  
 
-    return tip_position, tip_velocity, tip_speed, node_speeds
+    # Getting the positions of nodes on the rod
+    node_positions = np.empty(len(node_numbers), dtype=np.float64)
+    for i, node in enumerate(node_numbers):
+        pos = position_collection[:, node]
+        node_positions[i] = pos
+
+    return tip_position, tip_velocity, tip_speed, node_speeds, node_positions.flatten()

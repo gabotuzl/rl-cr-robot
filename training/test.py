@@ -4,69 +4,67 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from env.cr_env import cr_env
+from common.visualizer import render_episode
 from config import CONFIG
 
 
-def run_testing(vecnorm_path, checkpoint_path):
-    num_episodes = 1
-    total_rewards = []
+def run_testing(checkpoint_path: str, num_episodes: int = 1):
+    # Deriving vecnorm path automatically from checkpoint path
+    vecnorm_path = checkpoint_path.replace(".zip", ".pkl").replace("ppo_robot", "ppo_robot_vecnormalize")
 
-    env_instance = cr_env()
-    env = DummyVecEnv([env_instance])
+    if not os.path.exists(vecnorm_path):
+        raise FileNotFoundError(f"VecNormalize file not found: {vecnorm_path}\n"
+                                f"Expected alongside checkpoint at: {checkpoint_path}")
+
+
+
+    os.makedirs(os.path.join(CONFIG.paths.save_dir, "position_data"), exist_ok=True)
+
+    env = DummyVecEnv([lambda: cr_env()])
     env = VecNormalize.load(vecnorm_path, env)
     env.training = False
     env.norm_reward = False
     env.norm_obs = True
+
     model = PPO.load(checkpoint_path, env=env)
 
+    total_rewards = []
 
     for episode in range(num_episodes):
         obs = env.reset()
+        target_pos = np.array(env.get_attr("target_position")[0])
         done = False
-        episode_reward = 0
+        episode_reward = 0.0
         counter = 0
-        
+
         while not done:
             action, _ = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action)
+            reward = float(reward[0])
+            done = bool(done[0])
 
-            target_pos = np.array(env.get_attr("target_position")[0])
-            rod_data = env.get_attr("callback_data_rod_object")[0].copy()
-
-
-            final_config = rod_data['position'][-1]
-            final_position_data = np.array((final_config[0][-1], final_config[1][-1], final_config[2][-1]))
-            dist = np.linalg.norm(final_position_data-target_pos)
-
-
-            reward = reward[0]
-            done = done[0]
-            # print("DIST: ", dist, '\n')
-            print("REWARD: ", reward)
-            print("DONE: ", done)
-            print("COUNTER: ", counter)
-            print("ACTION: ", action)
             episode_reward += reward
-            counter+=1
+            counter += 1
 
-            if done:
-                target_pos = np.array(env.get_attr("target_position")[0].copy())
-                
+            print(f"Step {counter} | Reward: {reward:.4f} | Done: {done}")
+            print(f"Action: {action}")
 
-                break
-        
+        # Fetch rod data once after episode ends
+        rod_data = env.get_attr("callback_data_rod_object")[0].copy()
+        final_config = rod_data['position'][-1]
+        final_pos = np.array([final_config[0][-1], final_config[1][-1], final_config[2][-1]])
+        dist = np.linalg.norm(final_pos - target_pos)
+
         total_rewards.append(episode_reward)
-        print(f"Episode {episode + 1}: Total Reward = {episode_reward}")
+        print(f"\nEpisode {episode + 1}: Reward={episode_reward:.4f} | "
+              f"Final dist={dist:.4f} | Target={target_pos}")
 
-
-        nested_list = [arr.tolist() for arr in rod_data['position']]
-
-        with open(f'{CONFIG.paths.save_dir}/position_data/test_run_{episode+1}.txt', "a") as f:
-            f.write(f"{str(nested_list)}")
-        with open(f'{CONFIG.paths.save_dir}TARGET_POSITIONS.txt', "a") as f:
-            f.write(f"EPISODE {episode+1}, Target pos: {target_pos} \n ")
-            # f.write(f"EPISODE {episode+1}, Final pos: {final_position_data} \n\n")
-        
+        # Creating visualization of episode
+        render_episode(
+            position_data=rod_data['position'],
+            target_position=target_pos,
+            output_path=os.path.join(CONFIG.paths.save_dir, "videos", f"test_run_{episode+1}.mp4"),
+        )
 
     avg_reward = sum(total_rewards) / num_episodes
-    print(f"Average Reward over {num_episodes} episodes: {avg_reward}")
+    print(f"\nAverage reward over {num_episodes} episodes: {avg_reward:.4f}")

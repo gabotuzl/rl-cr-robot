@@ -8,12 +8,12 @@ class EnvConfig:
     x_variation: float = 0.1
     y_variation: float = 0.1
     z_variation: float = 0.1
-    num_timesteps_per_step: int = 800   # simulation substeps per RL step
+    num_timesteps_per_step: int = 3000   # simulation substeps per RL step
 
     # Observation history
-    state_history_len: int = 20
+    state_history_len: int = 5
     reward_history_len: int = 10
-    action_history_len: int = 20
+    action_history_len: int = 5
     nodes_checked: int = 10  # Number of nodes checked for movement along the rod
 
 
@@ -31,8 +31,8 @@ class PPOConfig:
     ent_coef: float = 0.005
     vf_coef: float = 0.3
     max_grad_norm: float = 0.5
-    net_arch_pi: List[int] = field(default_factory=lambda: [512, 256, 128])
-    net_arch_vf: List[int] = field(default_factory=lambda: [512, 256, 128])
+    net_arch_pi: List[int] = field(default_factory=lambda: [256, 128])
+    net_arch_vf: List[int] = field(default_factory=lambda: [256, 256])
 
 
 @dataclass
