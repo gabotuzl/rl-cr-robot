@@ -271,6 +271,9 @@ class cr_env(Env):
                     node_speeds=self.node_speeds,
                     best_dist=self.best_distance,
                     num_tendons=self.num_tendons,
+                    target_position=self.target_position,
+                    current_position=self.state,
+                    tip_velocity_vector=self.tip_velocity
                     )
 
         info = {'distance_norm_to_target': current_distance}
