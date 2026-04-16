@@ -23,7 +23,7 @@ class LoggerCallback(BaseCallback):
         print(f"\n---- PPO UPDATE #{self.update_counter} ----\n")
 
 
-def make_checkpoint_callback(save_path: str = "./checkpoints/", save_freq: int = 20_000) -> CheckpointCallback:
+def make_checkpoint_callback(save_path: str = "./checkpoints/", save_freq: int = 10_000) -> CheckpointCallback:
     return CheckpointCallback(
         save_freq=save_freq,
         save_path=save_path,

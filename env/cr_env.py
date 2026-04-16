@@ -43,7 +43,7 @@ class cr_env(Env):
         self.X_variation = CONFIG.env.x_variation
         self.Y_variation = CONFIG.env.y_variation
         self.Z_variation = CONFIG.env.z_variation
-        self.time_step = ROD_PARAMS.dt_max
+        self.time_step = ROD_PARAMS.dt
         self.steps_per_learn_update = CONFIG.env.num_timesteps_per_step
         self.max_steps = (6/self.time_step)/self.steps_per_learn_update  #max steps per episode. this makes for a ~6s episode.
 
@@ -79,7 +79,7 @@ class cr_env(Env):
                                          np.random.uniform(-self.Z_variation, self.Z_variation)]) 
         
         # Setting up counters, summers, and state variables
-        self.action_history = np.zeros((CONFIG.env.action_history_len,4)) # Previous actions, all with 4 components each
+        self.action_history = np.zeros((CONFIG.env.action_history_len,8)) # Previous actions, all with 8 components each
         self.state_history = np.zeros((CONFIG.env.state_history_len,3)) # Previous states, all with 3 components each
         self.NN_tendon_tensions = np.zeros(8) # The tendon tensions (action)
         self.state = np.zeros(3) # Initial position
@@ -114,10 +114,6 @@ class cr_env(Env):
         self.initial_tangents = self.rod_object.tangents.copy()
 
     def create_simulator(self):
-
-        # Simulation parameters
-        rendering_fps = SIM_PARAMS.rendering_fps
-        step_skip = SIM_PARAMS.step_skip
 
         # Creating the simulator 
         self.rod_simulator = RodSimulator()
@@ -180,7 +176,7 @@ class cr_env(Env):
 
         # Add MyCallBack to SystemSimulator for each rod telling it how often to save data (step_skip)
         self.rod_simulator.collect_diagnostics(self.rod_object).using(
-            MyCallBack, step_skip=step_skip, callback_params=self.callback_data_rod_object)
+            MyCallBack, step_skip=self.steps_per_learn_update, callback_params=self.callback_data_rod_object)
 
         self.rod_simulator.finalize()
 
@@ -267,7 +263,7 @@ class cr_env(Env):
         # Computing reward
         reward += compute_reward(
                     dist=current_distance,
-                    tip_speed=self.tip_speed,
+                    tip_speed=self.tip_speed[0],
                     action_curr=self.action_history[-1],
                     action_prev=self.action_history[-2],
                     node_speeds=self.node_speeds,
@@ -283,8 +279,14 @@ class cr_env(Env):
         self.state_history = np.vstack((self.state_history[1:], self.state)) # Adds new state at -1 and removes oldest at 0
         self.best_distance = min(current_distance, self.best_distance)
 
-        obs = np.concatenate((self.state_history.flatten(), self.target_position, self.delta, self.tip_velocity, np.array([self.tip_speed]), self.node_speeds, self.action_history.flatten()))
-
+        obs = np.concatenate((self.state_history.flatten(), 
+                              self.target_position, 
+                              self.delta, 
+                              self.tip_velocity, 
+                              self.tip_speed, 
+                              self.node_speeds,
+                              self.node_positions, 
+                              self.action_history.flatten()))
         self.score += reward
         self.step_count += 1
         self.total_step_count += 1
@@ -357,5 +359,7 @@ class cr_env(Env):
                               self.node_positions, 
                               self.action_history.flatten()))
         info = {'Reset the environment'}
+
+        print(f"max_steps = {self.max_steps}")
 
         return obs, info

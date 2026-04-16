@@ -6,7 +6,7 @@ import numpy as np
  
 # Distance reward
 DIST_THRESHOLD       = 0.08    # Goal radius (m) — tip is "at target" below this
-DIST_LINEAR_SLOPE    = 35.0    # Slope of linear region (far from target). Was 16.8.
+DIST_LINEAR_SLOPE    = -35.0   # Slope of linear region (far from target). Was 16.8.
                                 # Higher → stronger pull toward goal from far away.
 DIST_QUAD_K          = 2000.0  # Curvature of quadratic region (near target). Keep as-is.
 DIST_STABLE_MAX      = 2.5     # Max bonus for holding still inside goal radius
@@ -180,30 +180,39 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     else:
         # Linear — agent is far from goal.
         # Intercept chosen so the two pieces share the same value and slope at x_meet.
-        distance_reward = -m * dist + b
+        distance_reward = m * dist + b
  
-    reward = distance_reward
+    reward = (distance_value:= distance_reward)
  
     # ── 2. Antagonist penalty ────────────────────────────────────────────────
-    reward += antagonist_penalty(action_curr)
+    reward += (antagonist_value:= antagonist_penalty(action_curr))
  
     # ── 3. Tensions penalty (replaces tendon switching penalty) ──────────────
-    reward += tensions_penalty(action_prev, action_curr, num_tendons)
+    reward += (tensions_value:= tensions_penalty(action_prev, action_curr, num_tendons))
  
     # ── 4. Node speeds penalty (near-target only) ────────────────────────────
     if dist < NODE_SPEED_GATE:
-        reward += node_speeds_penalty(node_speeds)
+        reward += (node_speeds_value:= node_speeds_penalty(node_speeds))
  
     # ── 5. Tip speed penalty (always active) ────────────────────────────────
-    reward += tip_speed_penalty(tip_speed)
+    reward += (tip_speed_value:= tip_speed_penalty(tip_speed))
  
     # ── 6. Best distance bonus ───────────────────────────────────────────────
-    reward += best_distance_bonus(dist, best_dist)
+    reward += (best_distance_value:= best_distance_bonus(dist, best_dist))
  
     # ── 7. Correct direction bonus (far-from-target only) ───────────────────
     if dist > threshold:
-        reward += correct_direction_bonus(
+        reward += (correct_direction_value:= correct_direction_bonus(
             target_position, current_position, tip_velocity_vector
-        )
- 
+        ))
+
+    print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
+    print(f"distance_reward\t{distance_value}")
+    print(f"antagonist_penalty\t{antagonist_value}")
+    print(f"tensions_penalty\t{tensions_value}")
+    print(f"node_speeds_penalty\t{node_speeds_value}")
+    print(f"tip_speed_penalty\t{tip_speed_value}")
+    print(f"best_distance_bonus\t{best_distance_value}")
+    print(f"correct_direction_bonus\t{correct_direction_value}")
+
     return reward

@@ -211,6 +211,6 @@ __marimo__/
 
 # Results
 ppo_tensorboard/
-20_test_runs_new/
+test_runs/
 checkpoints/
 logs/

@@ -16,10 +16,6 @@ def run_testing(checkpoint_path: str, num_episodes: int = 1):
         raise FileNotFoundError(f"VecNormalize file not found: {vecnorm_path}\n"
                                 f"Expected alongside checkpoint at: {checkpoint_path}")
 
-
-
-    os.makedirs(os.path.join(CONFIG.paths.save_dir, "position_data"), exist_ok=True)
-
     env = DummyVecEnv([lambda: cr_env()])
     env = VecNormalize.load(vecnorm_path, env)
     env.training = False

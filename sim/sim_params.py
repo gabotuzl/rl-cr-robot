@@ -12,6 +12,7 @@ class RodParams:
     direction: tuple = (1.0, 0.0, 0.0)      # Direction the rod extends
     normal: tuple = (0.0, 0.0, 1.0)         # Normal vector of rod
     start: tuple = (0.0, 0.0, 0.0)          # Starting position of first node in rod
+    dt: float = 0.8e-5                      # Simulation time step, must be lower than dt_max
 
     @property
     def dt_max(self) -> float:
@@ -39,10 +40,9 @@ class TendonParams:
 
 @dataclass(frozen=True)
 class SimParams:
-    time_step: float = 0.8e-5 #RodParams.dt_max() or smaller
+    time_step: float = 0.8e-5 #RodParams.dt 
     final_time: float = 7.0
     damping_constant: float = 0.2
-    rendering_fps: float = 10.0
     enable_gravity: bool = False
     gravity_axis: int = 2          # 0=X, 1=Y, 2=Z
     gravity_magnitude: float = -9.80665
@@ -53,10 +53,6 @@ class SimParams:
         if self.enable_gravity:
             vec[self.gravity_axis] = self.gravity_magnitude
         return vec
-
-    @property
-    def step_skip(self) -> int:
-        return int(1.0 / (self.rendering_fps * self.time_step))
 
 
 # Instantiate ready-to-use singletons

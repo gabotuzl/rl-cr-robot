@@ -26,18 +26,19 @@ def get_state(tip_position, velocity_collection, position_collection, node_numbe
     # Getting the velocity of the tip 
     tip_velocity = velocity_collection[:, -1]
 
-    tip_speed = np.sqrt(tip_velocity[0]**2 + tip_velocity[1]**2 + tip_velocity[2]**2)
+    tip_speed = np.array([np.sqrt(tip_velocity[0]**2 + tip_velocity[1]**2 + tip_velocity[2]**2)])
 
-    # Getting the speeds of nodes on the rod
+    # Getting the speeds and positions of nodes on the rod
     node_speeds = np.empty(len(node_numbers), dtype=np.float64)
+    node_positions = np.empty((len(node_numbers), 3), dtype=np.float64)
     for i, node in enumerate(node_numbers):
         vel = velocity_collection[:, node]
         node_speeds[i] = np.sqrt(vel[0]**2 + vel[1]**2 + vel[2]**2)  
 
-    # Getting the positions of nodes on the rod
-    node_positions = np.empty(len(node_numbers), dtype=np.float64)
-    for i, node in enumerate(node_numbers):
         pos = position_collection[:, node]
-        node_positions[i] = pos
+        node_positions[i, 0] = pos[0] 
+        node_positions[i, 1] = pos[1]  
+        node_positions[i, 2] = pos[2]  
+
 
     return tip_position, tip_velocity, tip_speed, node_speeds, node_positions.flatten()
