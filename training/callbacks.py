@@ -1,6 +1,8 @@
 from stable_baselines3.common.callbacks import (
     CheckpointCallback, BaseCallback, CallbackList
 )
+from config import CONFIG
+
 
 class LoggerCallback(BaseCallback):
     def __init__(self, log_freq: int, verbose=1):
@@ -15,6 +17,10 @@ class LoggerCallback(BaseCallback):
                 f"Total: {self.num_timesteps:>10,} | "
                 f"Updates: {self.update_counter}"
             )
+
+        if self.n_calls % 1000 == 0:
+            print(f"Action mean: {self.model.policy.action_net.weight.mean().item():.4f}")
+
         return True
 
     def _on_rollout_end(self) -> None:
@@ -23,7 +29,7 @@ class LoggerCallback(BaseCallback):
         print(f"\n---- PPO UPDATE #{self.update_counter} ----\n")
 
 
-def make_checkpoint_callback(save_path: str = "./checkpoints/", save_freq: int = 10_000) -> CheckpointCallback:
+def make_checkpoint_callback(save_path: str = CONFIG.paths.checkpoint_dir, save_freq: int = 10_000) -> CheckpointCallback:
     return CheckpointCallback(
         save_freq=save_freq,
         save_path=save_path,
@@ -31,7 +37,7 @@ def make_checkpoint_callback(save_path: str = "./checkpoints/", save_freq: int =
         save_vecnormalize=True,
     )
 
-def make_training_callbacks(log_freq: int = 5, save_path: str = "./checkpoints/") -> CallbackList:
+def make_training_callbacks(log_freq: int = 5, save_path: str = CONFIG.paths.checkpoint_dir) -> CallbackList:
     return CallbackList([
         make_checkpoint_callback(save_path=save_path),
         LoggerCallback(log_freq=log_freq),

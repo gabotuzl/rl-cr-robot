@@ -6,7 +6,7 @@ import numpy as np
  
 # Distance reward
 DIST_THRESHOLD       = 0.08    # Goal radius (m) — tip is "at target" below this
-DIST_LINEAR_SLOPE    = -35.0   # Slope of linear region (far from target). Was 16.8.
+DIST_LINEAR_SLOPE    = -15.0   # Slope of linear region (far from target). Was 16.8.
                                 # Higher → stronger pull toward goal from far away.
 DIST_QUAD_K          = 2000.0  # Curvature of quadratic region (near target). Keep as-is.
 DIST_STABLE_MAX      = 2.5     # Max bonus for holding still inside goal radius
@@ -17,7 +17,7 @@ ANTAG_PENALTY        = 1.5     # Penalty per co-active antagonist pair
  
 # Tensions penalty (replaces tendon switching penalty)
 TENSIONS_THRESHOLD   = 0.3     # Min Δtension to trigger penalty
-TENSIONS_PENALTY     = 0.8     # Penalty scale per tendon (× Δtension magnitude)
+TENSIONS_PENALTY     = 1.0     # Penalty scale per tendon (× Δtension magnitude)
  
 # Node speeds penalty (gated to near-target only)
 NODE_SPEED_THRESHOLD = 0.1     # Min node speed to trigger penalty
@@ -206,13 +206,13 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
             target_position, current_position, tip_velocity_vector
         ))
 
-    print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
-    print(f"distance_reward\t{distance_value}")
-    print(f"antagonist_penalty\t{antagonist_value}")
-    print(f"tensions_penalty\t{tensions_value}")
-    print(f"node_speeds_penalty\t{node_speeds_value}")
-    print(f"tip_speed_penalty\t{tip_speed_value}")
-    print(f"best_distance_bonus\t{best_distance_value}")
-    print(f"correct_direction_bonus\t{correct_direction_value}")
+    # print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
+    # print(f"distance_reward\t{distance_value}")
+    # print(f"antagonist_penalty\t{antagonist_value}")
+    # print(f"tensions_penalty\t{tensions_value}")
+    # print(f"node_speeds_penalty\t{node_speeds_value}")
+    # print(f"tip_speed_penalty\t{tip_speed_value}")
+    # print(f"best_distance_bonus\t{best_distance_value}")
+    # print(f"correct_direction_bonus\t{correct_direction_value}")
 
     return reward

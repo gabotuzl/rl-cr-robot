@@ -6,25 +6,38 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from env.cr_env import cr_env
 from common.visualizer import render_episode
 from config import CONFIG
+from sim.sim_params import TENDON_PARAMS
 
 
-def run_testing(checkpoint_path: str, num_episodes: int = 1):
+def run_testing(checkpoint_path: str = None, num_episodes: int = 1):
     # Deriving vecnorm path automatically from checkpoint path
-    vecnorm_path = checkpoint_path.replace(".zip", ".pkl").replace("ppo_robot", "ppo_robot_vecnormalize")
-
-    if not os.path.exists(vecnorm_path):
-        raise FileNotFoundError(f"VecNormalize file not found: {vecnorm_path}\n"
-                                f"Expected alongside checkpoint at: {checkpoint_path}")
 
     env = DummyVecEnv([lambda: cr_env()])
-    env = VecNormalize.load(vecnorm_path, env)
-    env.training = False
-    env.norm_reward = False
-    env.norm_obs = True
 
-    model = PPO.load(checkpoint_path, env=env)
+    if checkpoint_path is None:
+        # Fresh untrained model — random weights
+        print("No checkpoint provided — running with fresh untrained policy...")
+        env = VecNormalize(env, norm_obs=True, norm_reward=True)
+        model = PPO("MlpPolicy", env, ent_coef=CONFIG.ppo.ent_coef, verbose=0)
+        deterministic = False  # sample from distribution to see exploration behaviour
+    else:
+        vecnorm_path = checkpoint_path.replace(".zip", ".pkl").replace("ppo_robot", "ppo_robot_vecnormalize")
+        if not os.path.exists(vecnorm_path):
+            raise FileNotFoundError(f"VecNormalize file not found: {vecnorm_path}\n"
+                                    f"Expected alongside checkpoint at: {checkpoint_path}")
+
+        env = VecNormalize.load(vecnorm_path, env)
+        env.training = False
+        env.norm_reward = False
+        env.norm_obs = True
+
+        model = PPO.load(checkpoint_path, env=env)
 
     total_rewards = []
+
+    print(f"Obs mean (first 10): {env.obs_rms.mean[:10]}")
+    print(f"Obs var  (first 10): {env.obs_rms.var[:10]}")
+    print(type(model.policy.action_dist))
 
     for episode in range(num_episodes):
         obs = env.reset()
@@ -43,7 +56,8 @@ def run_testing(checkpoint_path: str, num_episodes: int = 1):
             counter += 1
 
             print(f"Step {counter} | Reward: {reward:.4f} | Done: {done}")
-            print(f"Action: {action}")
+            print(f"Action (raw):    {action}")
+            print(f"Action (scaled): {(action + 1.0) / 2.0 * TENDON_PARAMS.max_tension}")
 
         # Fetch rod data once after episode ends
         rod_data = env.get_attr("callback_data_rod_object")[0].copy()

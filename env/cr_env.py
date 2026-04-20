@@ -49,8 +49,8 @@ class cr_env(Env):
 
         
         # Action space
-        # - Tension allowed in the tendons (range from 0 to max_tension)
-        self.action_space = spaces.Box(low=0, high=self.max_tension, shape=(self.num_tendons,), dtype=np.float64)
+        # - Tension allowed in the tendons (-1 to 1 to keep it symmetric on 0.0, will be scaled later in step() (0 to self.max_tension)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.num_tendons,), dtype=np.float64)
 
         # Observation space
         # - The XYZ position history of the 5 previous tip positions (15 values)
@@ -217,12 +217,16 @@ class cr_env(Env):
         return obs, reward, done, done, info 
 
     def step(self, action):
-        self.action_history = np.vstack((self.action_history[1:], action)) # Adds new action at -1 and removes oldest at 0
+
+        self.raw_action = action
+        self.scaled_action = (action + 1.0) / 2.0 * self.max_tension # Scaling from [-1, 1] to [0, self.max_tension]
+
+        self.action_history = np.vstack((self.action_history[1:], self.scaled_action)) # Adds new action at -1 and removes oldest at 0
 
         # Here is where the NN chooses an action to influence the system, and this action is taken by the simulator
         # The [:] ensures that the underlying array in memory is changed, thus the instantiated Forcing class can use this as well since it checks that 
         # point in memory as well.
-        self.NN_tendon_tensions[:] = action
+        self.NN_tendon_tensions[:] = self.scaled_action
 
         # Do multiple time step of simulation for (one learning step)
         for _ in range(self.steps_per_learn_update):
@@ -286,7 +290,7 @@ class cr_env(Env):
                               self.tip_speed, 
                               self.node_speeds,
                               self.node_positions, 
-                              self.action_history.flatten()))
+                              self.action_history.flatten())) 
         self.score += reward
         self.step_count += 1
         self.total_step_count += 1
@@ -359,7 +363,5 @@ class cr_env(Env):
                               self.node_positions, 
                               self.action_history.flatten()))
         info = {'Reset the environment'}
-
-        print(f"max_steps = {self.max_steps}")
 
         return obs, info

@@ -12,6 +12,7 @@ def parse_args():
 
     parser.add_argument("--checkpoint-path", type=str, default=None,
                         help="Specific checkpoint .zip to load (optional)")
+                        
     return parser.parse_args()
 
 
@@ -21,6 +22,6 @@ if __name__ == "__main__":
     if args.scratch:
         run_training(from_scratch=True)
     elif args.checkpoint:
-        run_training(from_scratch=False, checkpoint_path=args.checkpoint_path)
+        run_training(from_scratch=False)
     elif args.test:
         run_testing(checkpoint_path=args.checkpoint_path)
