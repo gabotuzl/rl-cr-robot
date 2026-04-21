@@ -17,7 +17,7 @@ def run_testing(checkpoint_path: str = None, num_episodes: int = 1):
     if checkpoint_path is None:
         # Fresh untrained model — random weights
         print("No checkpoint provided — running with fresh untrained policy...")
-        env = VecNormalize(env, norm_obs=True, norm_reward=True)
+        env = VecNormalize(env, norm_obs=True, norm_reward=False)
         model = PPO("MlpPolicy", env, ent_coef=CONFIG.ppo.ent_coef, verbose=0)
         deterministic = False  # sample from distribution to see exploration behaviour
     else:

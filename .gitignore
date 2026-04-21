@@ -215,3 +215,4 @@ test_runs/
 checkpoints/
 checkpoints_128/
 logs/
+/changelog

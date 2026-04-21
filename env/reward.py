@@ -11,10 +11,13 @@ DIST_LINEAR_SLOPE    = -15.0   # Slope of linear region (far from target). Was 1
                                 # Higher → stronger pull toward goal from far away.
 DIST_QUAD_K          = 2000.0  # Curvature of quadratic region (near target). Keep as-is.
 DIST_STABLE_MAX      = 2.5     # Max bonus for holding still inside goal radius
+
+GOAL_DIST_THRESHOLD  = 0.01    # What is considered "reaching" the goal
+GOAL_REACH_BONUS     = 50.0    # Bonus for reaching the goal, happens only once per episode
  
 # Antagonist penalty
 ANTAG_THRESHOLD      = 0.05    # Min tension for both tendons to be considered "active"
-ANTAG_PENALTY        = 0.5     # Penalty per co-active antagonist pair
+ANTAG_PENALTY        = 0.2     # Penalty per co-active antagonist pair
  
 # Tensions penalty (replaces tendon switching penalty)
 TENSIONS_THRESHOLD   = 0.2     # Min Δtension to trigger penalty (20% of normalized action [0,1])
@@ -133,9 +136,16 @@ def correct_direction_bonus(target_position, current_position,
     goal_speed = np.dot(np.ascontiguousarray((tip_velocity_vector)), np.ascontiguousarray((target_dir)))
     return goal_speed * k_factor
 
+@njit(cache=True)
+def goal_reach_bonus(dist, goal_reached_flag):
+    if dist <= GOAL_DIST_THRESHOLD and not goal_reached_flag[0]:
+        goal_reached_flag[0] = True
+        return GOAL_REACH_BONUS
+
+
 def compute_reward(dist, tip_speed, action_curr, action_prev,
                    node_speeds, best_dist, num_tendons,
-                   target_position, current_position, tip_velocity_vector):
+                   target_position, current_position, tip_velocity_vector, goal_reached_flag):
     """
     Compute the total reward for one environment step.
  
@@ -183,8 +193,11 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     reward += (tensions_value:= tensions_penalty(action_prev, action_curr, num_tendons))
  
     # ── 4. Node speeds penalty (near-target only) ────────────────────────────
-    if dist < t:
-        reward += (node_speeds_value:= node_speeds_penalty(node_speeds))
+    # Silenced for now because tip speed is probably good enough for stabilization. If wiggling is a problem, then reintroduce
+    node_speeds_value = 0.0
+    correct_direction_value = 0.0
+    # if dist < t:
+    #     reward += (node_speeds_value:= node_speeds_penalty(node_speeds))
  
     # ── 5. Tip speed penalty (always active) ────────────────────────────────
     reward += (tip_speed_value:= tip_speed_penalty(tip_speed))
@@ -192,19 +205,21 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     # ── 6. Best distance bonus ───────────────────────────────────────────────
     reward += (best_distance_value:= best_distance_bonus(dist, best_dist))
  
-    # ── 7. Correct direction bonus (far-from-target only) ───────────────────
-    if dist > t:
-        reward += (correct_direction_value:= correct_direction_bonus(
-            target_position, current_position, tip_velocity_vector
-        ))
+    # ── 7. Correct direction bonus  ────────────────────────────────────────────
+    reward += (correct_direction_value:= correct_direction_bonus(
+        target_position, current_position, tip_velocity_vector
+    ))
+
+    # ── 7. Goal reached bonus  ────────────────────────────────────────────────
+    reward += (goal_reach_value:= goal_reach_bonus(goal_reach_flag))
 
     print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
     print(f"distance_reward\t{distance_value}")
     print(f"antagonist_penalty\t{antagonist_value}")
     print(f"tensions_penalty\t{tensions_value}")
-    # print(f"node_speeds_penalty\t{node_speeds_value}")
+    print(f"node_speeds_penalty\t{node_speeds_value}")
     print(f"tip_speed_penalty\t{tip_speed_value}")
     print(f"best_distance_bonus\t{best_distance_value}")
-    # print(f"correct_direction_bonus\t{correct_direction_value}")
+    print(f"correct_direction_bonus\t{correct_direction_value}")
 
     return reward

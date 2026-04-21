@@ -1,5 +1,6 @@
 from sim.sim_params import ROD_PARAMS, TENDON_PARAMS, SIM_PARAMS
 from config import CONFIG
+from env.reward import GOAL_DIST_THRESHOLD
 
 from gymnasium import Env, spaces
 from gymnasium.spaces import Discrete, Box
@@ -86,6 +87,7 @@ class cr_env(Env):
         self.timestamp_start = datetime.now()
         self.StatefulStepper = PositionVerlet() # Symplectic ime integration scheme
 
+        self.goal_reached_flag = np.array([False])
         self.step_count = 0
         self.score = 0.0
         self.total_step_count = 0
@@ -275,8 +277,10 @@ class cr_env(Env):
                     num_tendons=self.num_tendons,
                     target_position=self.target_position,
                     current_position=self.state,
-                    tip_velocity_vector=self.tip_velocity
+                    tip_velocity_vector=self.tip_velocity,
+                    goal_reached_flag=self.goal_reached_flag
                     )
+
 
         info = {'distance_norm_to_target': current_distance}
 
@@ -341,6 +345,7 @@ class cr_env(Env):
         self.step_count = 0
         self.time_tracker = np.float64(0.0)
         self.previous_action = None
+        self.goal_reached_flag = np.array([False])
         
         self.state, self.tip_velocity, self.tip_speed, self.node_speeds, self.node_positions = get_state(np.array(self.rod_object.position_collection[:,-1].tolist()),
                                                                                                                   self.rod_object.velocity_collection,
