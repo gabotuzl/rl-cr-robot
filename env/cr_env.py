@@ -268,8 +268,8 @@ class cr_env(Env):
         reward += compute_reward(
                     dist=current_distance,
                     tip_speed=self.tip_speed[0],
-                    action_curr=self.action_history[-1],
-                    action_prev=self.action_history[-2],
+                    action_curr=self.action_history[-1] / self.max_tension,
+                    action_prev=self.action_history[-2] / self.max_tension,
                     node_speeds=self.node_speeds,
                     best_dist=self.best_distance,
                     num_tendons=self.num_tendons,

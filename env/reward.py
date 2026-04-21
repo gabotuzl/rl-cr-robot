@@ -1,5 +1,6 @@
 from numba import njit
 import numpy as np
+from sim.sim_params import TENDON_PARAMS
 
 # ─── Tuning constants ────────────────────────────────────────────────────────
 # Adjust these to shape agent behaviour without touching the logic below.
@@ -13,11 +14,11 @@ DIST_STABLE_MAX      = 2.5     # Max bonus for holding still inside goal radius
  
 # Antagonist penalty
 ANTAG_THRESHOLD      = 0.05    # Min tension for both tendons to be considered "active"
-ANTAG_PENALTY        = 1.5     # Penalty per co-active antagonist pair
+ANTAG_PENALTY        = 0.5     # Penalty per co-active antagonist pair
  
 # Tensions penalty (replaces tendon switching penalty)
-TENSIONS_THRESHOLD   = 0.3     # Min Δtension to trigger penalty
-TENSIONS_PENALTY     = 1.0     # Penalty scale per tendon (× Δtension magnitude)
+TENSIONS_THRESHOLD   = 0.2     # Min Δtension to trigger penalty (20% of normalized action [0,1])
+TENSIONS_PENALTY     = 2.0     # Penalty scale per tendon (× Δtension magnitude)
  
 # Node speeds penalty (gated to near-target only)
 NODE_SPEED_THRESHOLD = 0.1     # Min node speed to trigger penalty
@@ -30,6 +31,7 @@ NODE_SPEED_GATE      = 0.20    # Only penalise node speeds when dist < this (m).
 # Tip speed penalty
 TIP_SPEED_K          = 1.0     # Quadratic penalty scale. Was 0.2 — increased to
                                 # meaningfully suppress oscillations near goal.
+STABLE_SPEED_MAX     = 0.08     # Speed at which the tip can move and considered stable
  
 # Best distance bonus
 BEST_DIST_K          = 5.0     # Bonus scale for improvements to best distance
@@ -42,9 +44,7 @@ DIRECTION_K          = 0.8     # Bonus scale for velocity aligned with target di
 
 
 @njit(cache=True)
-def antagonist_penalty(action,
-                       threshold=ANTAG_THRESHOLD,
-                       penalty_per_pair=ANTAG_PENALTY):
+def antagonist_penalty(action, penalty_per_pair=ANTAG_PENALTY):
     """
     This function aims to curb the activation of opposite tendons of the same length (forces and moments will cancel out)
     Pairs are defined by the OctoTendonForces layout:
@@ -59,16 +59,14 @@ def antagonist_penalty(action,
     ]
 
     penalty = 0.0
+    # Penalizes antagonist tendons and the penalization is based on the "wasted force" of the weaker activated tendon
     for i, j in antagonist_pairs:
-        if action[i] > threshold and action[j] > threshold:
-            # Applies penalty if both antagonist tendons are active
-            penalty -= penalty_per_pair
-    
+        penalty -= penalty_per_pair * min(action[i], action[j]) 
+        
     return penalty
 
 @njit(cache=True)
 def tensions_penalty(action_prev, action_curr, num_tendons,
-                     threshold=TENSIONS_THRESHOLD,
                      penalty_per_tendon=TENSIONS_PENALTY):
 
 
@@ -79,11 +77,7 @@ def tensions_penalty(action_prev, action_curr, num_tendons,
     and will be caught here, so a separate switching penalty is not needed.
     """
     delta = np.abs(action_curr - action_prev)
-    penalty = 0.0
-    for k in range(num_tendons):
-        if delta[k] >= threshold:
-            penalty -= penalty_per_tendon * delta[k]
-    return penalty
+    return -penalty_per_tendon * np.sum(delta**2)
 
 @njit(cache=True)
 def node_speeds_penalty(node_speeds,
@@ -121,7 +115,6 @@ def best_distance_bonus(dist, best_distance, k_factor=BEST_DIST_K):
     if dist < best_distance:
         improvement_ratio = (best_distance - dist) / best_distance
         bonus = k_factor * improvement_ratio
-        best_distance = dist
     return bonus
 
 @njit(cache=True)
@@ -142,8 +135,7 @@ def correct_direction_bonus(target_position, current_position,
 
 def compute_reward(dist, tip_speed, action_curr, action_prev,
                    node_speeds, best_dist, num_tendons,
-                   target_position, current_position, tip_velocity_vector,
-                   threshold=DIST_THRESHOLD):
+                   target_position, current_position, tip_velocity_vector):
     """
     Compute the total reward for one environment step.
  
@@ -174,9 +166,9 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
 
     if dist < x_meet:
         # Quadratic bowl — agent is near goal
-        distance_reward = DIST_QUAD_K * (dist - threshold) ** 2
+        distance_reward = DIST_QUAD_K * (dist - t) ** 2
         # Bonus for holding still inside the goal region
-        distance_reward += min(DIST_STABLE_MAX, 20.0 * max(0.0, threshold - tip_speed))
+        distance_reward += min(DIST_STABLE_MAX, 20.0 * max(0.0, STABLE_SPEED_MAX - tip_speed))
     else:
         # Linear — agent is far from goal.
         # Intercept chosen so the two pieces share the same value and slope at x_meet.
@@ -191,7 +183,7 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     reward += (tensions_value:= tensions_penalty(action_prev, action_curr, num_tendons))
  
     # ── 4. Node speeds penalty (near-target only) ────────────────────────────
-    if dist < NODE_SPEED_GATE:
+    if dist < t:
         reward += (node_speeds_value:= node_speeds_penalty(node_speeds))
  
     # ── 5. Tip speed penalty (always active) ────────────────────────────────
@@ -201,18 +193,18 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     reward += (best_distance_value:= best_distance_bonus(dist, best_dist))
  
     # ── 7. Correct direction bonus (far-from-target only) ───────────────────
-    if dist > threshold:
+    if dist > t:
         reward += (correct_direction_value:= correct_direction_bonus(
             target_position, current_position, tip_velocity_vector
         ))
 
-    # print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
-    # print(f"distance_reward\t{distance_value}")
-    # print(f"antagonist_penalty\t{antagonist_value}")
-    # print(f"tensions_penalty\t{tensions_value}")
+    print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
+    print(f"distance_reward\t{distance_value}")
+    print(f"antagonist_penalty\t{antagonist_value}")
+    print(f"tensions_penalty\t{tensions_value}")
     # print(f"node_speeds_penalty\t{node_speeds_value}")
-    # print(f"tip_speed_penalty\t{tip_speed_value}")
-    # print(f"best_distance_bonus\t{best_distance_value}")
+    print(f"tip_speed_penalty\t{tip_speed_value}")
+    print(f"best_distance_bonus\t{best_distance_value}")
     # print(f"correct_direction_bonus\t{correct_direction_value}")
 
     return reward

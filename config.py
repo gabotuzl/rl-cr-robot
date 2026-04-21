@@ -8,7 +8,7 @@ class EnvConfig:
     x_variation: float = 0.1
     y_variation: float = 0.1
     z_variation: float = 0.1
-    num_timesteps_per_step: int = 1500   # simulation substeps per RL step # CHANGED FROM 3000
+    num_timesteps_per_step: int = 2500   # simulation substeps per RL step # CHANGED FROM 3000
 
     # Observation history
     state_history_len: int = 5
