@@ -23,11 +23,11 @@ class PPOConfig:
     n_steps: int = 2048
     batch_size: int = 4096
     n_epochs: int = 6
-    learning_rate: float = 1e-4
+    learning_rate: float = 3e-4
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_range: float = 0.1
-    ent_coef: float = 0.05
+    ent_coef: float = 0.01
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
     net_arch_pi: List[int] = field(default_factory=lambda: [256, 256])

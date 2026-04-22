@@ -12,7 +12,7 @@ DIST_LINEAR_SLOPE    = -15.0   # Slope of linear region (far from target). Was 1
 DIST_QUAD_K          = 2000.0  # Curvature of quadratic region (near target). Keep as-is.
 DIST_STABLE_MAX      = 2.5     # Max bonus for holding still inside goal radius
 
-GOAL_DIST_THRESHOLD  = 0.01    # What is considered "reaching" the goal
+GOAL_DIST_THRESHOLD  = 0.08    # What is considered "reaching" the goal
 GOAL_REACH_BONUS     = 50.0    # Bonus for reaching the goal, happens only once per episode
  
 # Antagonist penalty
@@ -141,6 +141,8 @@ def goal_reach_bonus(dist, goal_reached_flag):
     if dist <= GOAL_DIST_THRESHOLD and not goal_reached_flag[0]:
         goal_reached_flag[0] = True
         return GOAL_REACH_BONUS
+    else:
+        return 0.0
 
 
 def compute_reward(dist, tip_speed, action_curr, action_prev,
@@ -211,15 +213,27 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     ))
 
     # ── 7. Goal reached bonus  ────────────────────────────────────────────────
-    reward += (goal_reach_value:= goal_reach_bonus(goal_reach_flag))
+    reward += (goal_reach_value:= goal_reach_bonus(dist, goal_reached_flag))
 
-    print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
-    print(f"distance_reward\t{distance_value}")
-    print(f"antagonist_penalty\t{antagonist_value}")
-    print(f"tensions_penalty\t{tensions_value}")
-    print(f"node_speeds_penalty\t{node_speeds_value}")
-    print(f"tip_speed_penalty\t{tip_speed_value}")
-    print(f"best_distance_bonus\t{best_distance_value}")
-    print(f"correct_direction_bonus\t{correct_direction_value}")
+    components = {
+        'distance': distance_value,
+        'antagonist': antagonist_value,
+        'tensions': tensions_value,
+        'node_speeds': node_speeds_value,
+        'tip_speed': tip_speed_value,
+        'best_distance': best_distance_value,
+        'correct_direction': correct_direction_value,
+        'goal_reach': goal_reach_value,
+    }
 
-    return reward
+    # print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
+    # print(f"distance_reward\t{distance_value}")
+    # print(f"antagonist_penalty\t{antagonist_value}")
+    # print(f"tensions_penalty\t{tensions_value}")
+    # print(f"node_speeds_penalty\t{node_speeds_value}")
+    # print(f"tip_speed_penalty\t{tip_speed_value}")
+    # print(f"best_distance_bonus\t{best_distance_value}")
+    # print(f"correct_direction_bonus\t{correct_direction_value}")
+    # print(f"goal_reached_value\t{goal_reach_value}")
+
+    return reward, components

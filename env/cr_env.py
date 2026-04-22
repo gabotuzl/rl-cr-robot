@@ -225,6 +225,9 @@ class cr_env(Env):
 
         self.action_history = np.vstack((self.action_history[1:], self.scaled_action)) # Adds new action at -1 and removes oldest at 0
 
+        if self.step_count == 0:
+            self.action_history[-2] = self.action_history[-1] # Makes the previous action the same as the current action on the first step only
+
         # Here is where the NN chooses an action to influence the system, and this action is taken by the simulator
         # The [:] ensures that the underlying array in memory is changed, thus the instantiated Forcing class can use this as well since it checks that 
         # point in memory as well.
@@ -256,7 +259,7 @@ class cr_env(Env):
             self.nan_detected_function()
         
         # Maximum amount of steps reached
-        if self.step_count > self.max_steps:   
+        if self.step_count + 1 == self.max_steps:   
             done = True
             info = {'termination_reason': 'max_steps'}
             self.max_steps_counter += 1
@@ -267,22 +270,21 @@ class cr_env(Env):
         current_distance = np.linalg.norm(self.delta)
 
         # Computing reward
-        reward += compute_reward(
-                    dist=current_distance,
-                    tip_speed=self.tip_speed[0],
-                    action_curr=self.action_history[-1] / self.max_tension,
-                    action_prev=self.action_history[-2] / self.max_tension,
-                    node_speeds=self.node_speeds,
-                    best_dist=self.best_distance,
-                    num_tendons=self.num_tendons,
-                    target_position=self.target_position,
-                    current_position=self.state,
-                    tip_velocity_vector=self.tip_velocity,
-                    goal_reached_flag=self.goal_reached_flag
-                    )
+        reward_scalar, reward_components = compute_reward(dist=current_distance,
+                                                          tip_speed=self.tip_speed[0],
+                                                          action_curr=self.action_history[-1] / self.max_tension,
+                                                          action_prev=self.action_history[-2] / self.max_tension,
+                                                          node_speeds=self.node_speeds,
+                                                          best_dist=self.best_distance,
+                                                          num_tendons=self.num_tendons,
+                                                          target_position=self.target_position,
+                                                          current_position=self.state,
+                                                          tip_velocity_vector=self.tip_velocity,
+                                                          goal_reached_flag=self.goal_reached_flag
+                                                          )
+        reward += reward_scalar
 
-
-        info = {'distance_norm_to_target': current_distance}
+        info = {'distance_norm_to_target': current_distance, 'reward_components':reward_components}
 
         self.state_history = np.vstack((self.state_history[1:], self.state)) # Adds new state at -1 and removes oldest at 0
         self.best_distance = min(current_distance, self.best_distance)
