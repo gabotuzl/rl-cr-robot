@@ -189,50 +189,50 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     reward = (distance_value:= distance_reward)
  
     # ── 2. Antagonist penalty ────────────────────────────────────────────────
-    reward += (antagonist_value:= antagonist_penalty(action_curr))
+    # reward += (antagonist_value:= antagonist_penalty(action_curr))
  
     # ── 3. Tensions penalty (replaces tendon switching penalty) ──────────────
-    reward += (tensions_value:= tensions_penalty(action_prev, action_curr, num_tendons))
+    # reward += (tensions_value:= tensions_penalty(action_prev, action_curr, num_tendons))
  
     # ── 4. Node speeds penalty (near-target only) ────────────────────────────
     # Silenced for now because tip speed is probably good enough for stabilization. If wiggling is a problem, then reintroduce
-    node_speeds_value = 0.0
-    correct_direction_value = 0.0
+    # node_speeds_value = 0.0
+    # correct_direction_value = 0.0
     # if dist < t:
     #     reward += (node_speeds_value:= node_speeds_penalty(node_speeds))
  
     # ── 5. Tip speed penalty (always active) ────────────────────────────────
-    reward += (tip_speed_value:= tip_speed_penalty(tip_speed))
+    # reward += (tip_speed_value:= tip_speed_penalty(tip_speed))
  
     # ── 6. Best distance bonus ───────────────────────────────────────────────
     reward += (best_distance_value:= best_distance_bonus(dist, best_dist))
  
     # ── 7. Correct direction bonus  ────────────────────────────────────────────
-    reward += (correct_direction_value:= correct_direction_bonus(
-        target_position, current_position, tip_velocity_vector
-    ))
+    # reward += (correct_direction_value:= correct_direction_bonus(
+    #     target_position, current_position, tip_velocity_vector
+    # ))
 
     # ── 7. Goal reached bonus  ────────────────────────────────────────────────
-    reward += (goal_reach_value:= goal_reach_bonus(dist, goal_reached_flag))
+    # reward += (goal_reach_value:= goal_reach_bonus(dist, goal_reached_flag))
 
     components = {
         'distance': distance_value,
-        'antagonist': antagonist_value,
-        'tensions': tensions_value,
-        'node_speeds': node_speeds_value,
-        'tip_speed': tip_speed_value,
+        # 'antagonist': antagonist_value,
+        # 'tensions': tensions_value,
+        # 'node_speeds': node_speeds_value,
+        # 'tip_speed': tip_speed_value,
         'best_distance': best_distance_value,
-        'correct_direction': correct_direction_value,
-        'goal_reach': goal_reach_value,
+        # 'correct_direction': correct_direction_value,
+        # 'goal_reach': goal_reach_value,
     }
 
-    # print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
-    # print(f"distance_reward\t{distance_value}")
+    print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
+    print(f"distance_reward\t{distance_value}")
     # print(f"antagonist_penalty\t{antagonist_value}")
     # print(f"tensions_penalty\t{tensions_value}")
     # print(f"node_speeds_penalty\t{node_speeds_value}")
     # print(f"tip_speed_penalty\t{tip_speed_value}")
-    # print(f"best_distance_bonus\t{best_distance_value}")
+    print(f"best_distance_bonus\t{best_distance_value}")
     # print(f"correct_direction_bonus\t{correct_direction_value}")
     # print(f"goal_reached_value\t{goal_reach_value}")
 

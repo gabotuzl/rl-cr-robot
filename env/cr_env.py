@@ -318,8 +318,8 @@ class cr_env(Env):
                                          np.random.uniform(-self.Z_variation, self.Z_variation)]) 
 
 
-        # Resetting the tendon tensions to zero for all of them
-        self.NN_tendon_tensions = np.zeros(8)
+        # Resetting the tendon tensions to zero for all of them, preserving the pointer
+        self.NN_tendon_tensions[:] = 0.0
 
         # Resetting kinematic state
         self.rod_object.position_collection[:] = self.initial_position_collection

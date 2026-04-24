@@ -61,7 +61,7 @@ class RewardComponentCallback(BaseCallback):
         self.component_buffers = {}  # reset for next rollout
 
 
-def make_checkpoint_callback(save_path: str = CONFIG.paths.checkpoint_dir, save_freq: int = 10_000) -> CheckpointCallback:
+def make_checkpoint_callback(save_path: str = CONFIG.paths.checkpoint_dir, save_freq: int = (CONFIG.ppo.n_steps + 2)) -> CheckpointCallback:
     return CheckpointCallback(
         save_freq=save_freq,
         save_path=save_path,

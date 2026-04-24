@@ -47,7 +47,7 @@ def run_testing(checkpoint_path: str = None, num_episodes: int = 1):
         counter = 0
 
         while not done:
-            action, _ = model.predict(obs, deterministic=True)
+            action, _ = model.predict(obs, deterministic=False)
             obs, reward, done, info = env.step(action)
             reward = float(reward[0])
             done = bool(done[0])

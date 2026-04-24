@@ -29,7 +29,6 @@ def run_training(from_scratch):
         policy_kwargs = dict(
         net_arch=dict(pi=CONFIG.ppo.net_arch_pi, vf=CONFIG.ppo.net_arch_vf),
         ortho_init=True,
-        log_std_init=1.0
         )
 
         model = PPO(
