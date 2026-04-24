@@ -1,6 +1,7 @@
 from elastica.external_forces import NoForces
 import numpy as np
 from numba import njit
+from sim.sim_params import SIM_PARAMS
 
 class OctoTendonForces(NoForces):
     """
@@ -42,8 +43,8 @@ class OctoTendonForces(NoForces):
         self.n_elements = n_elements
 
         # Calculating the weights vector for the vertebrae. By default, the direction of gravity is in the global -Z direction
-        vertebra_weights_vector_long = np.array([0.0, 0.0, -vertebra_mass_long * 9.80665])
-        vertebra_weights_vector_short = np.array([0.0, 0.0, -vertebra_mass_short * 9.80665])
+        vertebra_weights_vector_long = vertebra_mass_long * SIM_PARAMS.gravity_vector
+        vertebra_weights_vector_short = vertebra_mass_short * SIM_PARAMS.gravity_vector
 
         # Creating vector containing the node numbers with the vertebrae for the long tendon
         vertebra_nodes_long = []
