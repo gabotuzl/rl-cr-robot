@@ -37,7 +37,7 @@ TIP_SPEED_K          = 1.0     # Quadratic penalty scale. Was 0.2 — increased 
 STABLE_SPEED_MAX     = 0.08     # Speed at which the tip can move and considered stable
  
 # Best distance bonus
-BEST_DIST_K          = 5.0     # Bonus scale for improvements to best distance
+BEST_DIST_K          = 15.0     # Bonus scale for improvements to best distance
  
 # Correct direction bonus (gated to far-from-target only)
 DIRECTION_K          = 0.8     # Bonus scale for velocity aligned with target direction.
