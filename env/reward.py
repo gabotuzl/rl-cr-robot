@@ -226,13 +226,13 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
         # 'goal_reach': goal_reach_value,
     }
 
-    print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
-    print(f"distance_reward\t{distance_value}")
+    # print(f"dist\t{dist}\tx_meet={x_meet}\ty_meet={y_meet}\tb={b}\tm={m}")
+    # print(f"distance_reward\t{distance_value}")
     # print(f"antagonist_penalty\t{antagonist_value}")
     # print(f"tensions_penalty\t{tensions_value}")
     # print(f"node_speeds_penalty\t{node_speeds_value}")
     # print(f"tip_speed_penalty\t{tip_speed_value}")
-    print(f"best_distance_bonus\t{best_distance_value}")
+    # print(f"best_distance_bonus\t{best_distance_value}")
     # print(f"correct_direction_bonus\t{correct_direction_value}")
     # print(f"goal_reached_value\t{goal_reach_value}")
 

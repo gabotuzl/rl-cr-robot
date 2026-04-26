@@ -8,7 +8,8 @@ class EnvConfig:
     x_variation: float = 0.1
     y_variation: float = 0.1
     z_variation: float = 0.1
-    num_timesteps_per_step: int = 2500   # simulation substeps per RL step # CHANGED FROM 3000
+    num_timesteps_per_step: int = 800   # simulation substeps per RL step (ms of learn step/ dt) in this cas 24ms of RL step and dt=3e-5
+    episode_time: float = 1.0 #CHANGED HERE
 
     # Observation history
     state_history_len: int = 5
@@ -27,7 +28,7 @@ class PPOConfig:
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_range: float = 0.1
-    ent_coef: float = 0.01
+    ent_coef: float = 0.005
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
     net_arch_pi: List[int] = field(default_factory=lambda: [256, 256])

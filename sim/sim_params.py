@@ -7,12 +7,12 @@ class RodParams:
     base_length: float = 0.25               # Original length of rod (m)
     base_radius: float = 0.011 / 2          # Original radius of rod (m)
     density: float = 997.7                  # Density of rod (kg/m^3)
-    youngs_modulus: float = 16.598637e6     # Elastic Modulus (Pa)
-    shear_modulus: float = 7.216880e6       # Shear Modulus (Pa)
+    youngs_modulus: float = 3.0e6           # Elastic Modulus (Pa)
+    shear_modulus: float = 2.0e6            # Shear Modulus (Pa)
     direction: tuple = (1.0, 0.0, 0.0)      # Direction the rod extends
     normal: tuple = (0.0, 0.0, 1.0)         # Normal vector of rod
     start: tuple = (0.0, 0.0, 0.0)          # Starting position of first node in rod
-    dt: float = 0.8e-5                      # Simulation time step, must be lower than dt_max
+    dt: float = 3.0e-5                      # Simulation time step, must be lower than dt_max
 
     @property
     def dt_max(self) -> float:
@@ -25,7 +25,7 @@ class RodParams:
 @dataclass(frozen=True)
 class TendonParams:
     num_tendons: int = 8
-    max_tension: float = 20.0
+    max_tension: float = 8.0 
     vertebra_height_long: float = 0.015
     num_vertebrae_long: int = 6
     first_vertebra_node_long: int = 2
@@ -34,14 +34,12 @@ class TendonParams:
     vertebra_height_short: float = 0.008
     num_vertebrae_short: int = 6
     first_vertebra_node_short: int = 2
-    final_vertebra_node_short: int = 30
+    final_vertebra_node_short: int = 50 
     vertebra_mass_short: float = 0.001
 
 
 @dataclass(frozen=True)
 class SimParams:
-    time_step: float = 0.8e-5 #RodParams.dt 
-    final_time: float = 7.0
     damping_constant: float = 0.2
     enable_gravity: bool = False
     gravity_axis: int = 2          # 0=X, 1=Y, 2=Z
