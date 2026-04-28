@@ -47,7 +47,6 @@ class cr_env(Env):
         self.time_step = ROD_PARAMS.dt
         self.steps_per_learn_update = CONFIG.env.num_timesteps_per_step
         self.max_steps = int((CONFIG.env.episode_time/self.time_step)/self.steps_per_learn_update)  #max steps per episode.
-        print(self.max_steps)
 
         
         # Action space
