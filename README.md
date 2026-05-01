@@ -36,6 +36,11 @@ After ~5.5M training steps, the agent achieves an average episode reward of ~148
 
 The trained agent occasionally exploits the quadratic reward shape by oscillating around the target rather than fully settling. A planned mitigation (tip speed penalty gated to near-goal regions) is described in the development notes and can be applied via a short fine-tune run.
 
+Method                          | Avg Reward | Notes
+PID (baseline)                  | ~1442      | Hand-tuned, can't reach all targets
+PPO from scratch                | -1700      | Converged to degenerate policy
+PPO + BC warm-start             | ~1483      | Surpasses PID, occasional oscillation
+
 ---
 
 ## Stack
