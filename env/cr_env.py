@@ -74,10 +74,16 @@ class cr_env(Env):
         high = np.full(obs_size,  np.inf, dtype=np.float64)
         self.observation_space = spaces.Box(low=low, high=high, shape=(obs_size,), dtype=np.float64)
 
-        # Random target 
-        self.target_position = np.array([np.random.uniform(self.L - self.X_variation, self.L), 
-                                         np.random.uniform(-self.Y_variation, self.Y_variation),
-                                         np.random.uniform(-self.Z_variation, self.Z_variation)]) 
+        # Random target in a reachable workspace
+        while True:
+            candidate = np.array([
+                np.random.uniform(self.L - self.X_variation, self.L),
+                np.random.uniform(-self.Y_variation, self.Y_variation),
+                np.random.uniform(-self.Z_variation, self.Z_variation)
+            ])
+            if np.linalg.norm(candidate) <= 0.95 * self.L:
+                self.target_position = candidate
+                break
         
         # Setting up counters, summers, and state variables
         self.action_history = np.zeros((CONFIG.env.action_history_len,8)) # Previous actions, all with 8 components each
@@ -318,10 +324,16 @@ class cr_env(Env):
         # Setting the random seed:
         np.random.seed(seed)
 
-        # Setting a new target position for the NN to be trained generally
-        self.target_position = np.array([np.random.uniform(self.L - self.X_variation, self.L), 
-                                         np.random.uniform(-self.Y_variation, self.Y_variation),
-                                         np.random.uniform(-self.Z_variation, self.Z_variation)]) 
+        # Random target in a reachable workspace
+        while True:
+            candidate = np.array([
+                np.random.uniform(self.L - self.X_variation, self.L),
+                np.random.uniform(-self.Y_variation, self.Y_variation),
+                np.random.uniform(-self.Z_variation, self.Z_variation)
+            ])
+            if np.linalg.norm(candidate) <= 0.95 * self.L:
+                self.target_position = candidate
+                break
 
 
         # Resetting the tendon tensions to zero for all of them, preserving the pointer

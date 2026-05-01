@@ -103,8 +103,8 @@ def node_speeds_penalty(node_speeds,
 @njit(cache=True)
 def tip_speed_penalty(tip_speed, k_factor=TIP_SPEED_K):
     """
-    Quadratic penalty on tip speed. Scaled up from k=0.2 to suppress oscillations
-    meaningfully. Applies everywhere (no gating) since we always want smooth motion.
+    Quadratic penalty on tip speed. Aiming to slow down tip when approaching target
+    and also top oscillations near target.
     """
     return -k_factor * tip_speed ** 2
 
@@ -204,8 +204,11 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     # if dist < t:
     #     reward += (node_speeds_value:= node_speeds_penalty(node_speeds))
  
-    # ── 5. Tip speed penalty (always active) ────────────────────────────────
-    # reward += (tip_speed_value:= tip_speed_penalty(tip_speed))
+    # ── 5. Tip speed penalty (Gated to goal reach) ──────────────────────────────
+    if dist < DIST_THRESHOLD:
+        reward += (tip_speed_value:= tip_speed_penalty(tip_speed))
+    else:
+        tip_speed_value = 0.0
  
     # ── 6. Best distance bonus ───────────────────────────────────────────────
     reward += (best_distance_value:= best_distance_bonus(dist, best_dist))
@@ -223,7 +226,7 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
         # 'antagonist': antagonist_value,
         # 'tensions': tensions_value,
         # 'node_speeds': node_speeds_value,
-        # 'tip_speed': tip_speed_value,
+        'tip_speed': tip_speed_value,
         'best_distance': best_distance_value,
         # 'correct_direction': correct_direction_value,
         # 'goal_reach': goal_reach_value,
@@ -238,5 +241,6 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     # print(f"best_distance_bonus\t{best_distance_value}")
     # print(f"correct_direction_bonus\t{correct_direction_value}")
     # print(f"goal_reached_value\t{goal_reach_value}")
+    print(f"TIP SPEED\t{tip_speed}")
 
     return reward, components
