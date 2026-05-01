@@ -19,7 +19,7 @@ Tendon vector layout (8 elements):
     7       HST (-Y)            target y > 0  (antagonist of HLT(+Y))
 
 Usage:
-    python collect_pid_demos.py --num-episodes 100 --output pid_demos.npz
+    python -m training.collect_pid_demos --num-episodes 100 --output pid_demos.npz
 """
 
 import argparse
@@ -109,16 +109,6 @@ def physical_to_rl_action(tensions: np.ndarray, max_tension: float) -> np.ndarra
     return (tensions / max_tension) * 2.0 - 1.0
 
 
-def warmup_vecnormalize(env: VecNormalize, num_steps: int = 5000):
-    print(f"Warming up VecNormalize for {num_steps} steps with random actions...")
-    obs = env.reset()
-    for _ in tqdm(range(num_steps), desc="Warmup"):
-        action = env.action_space.sample().reshape(1, -1)
-        obs, _, done, _ = env.step(action)
-        if done.any():
-            obs = env.reset()
-    print("Warmup complete.")
-
 # ---------------------------------------------------------------------------
 # Main collection routine
 # ---------------------------------------------------------------------------
@@ -129,8 +119,6 @@ def collect_demonstrations(num_episodes: int, output_path: str,
 
     env = DummyVecEnv([lambda: cr_env()])
     env = VecNormalize(env, norm_obs=True, norm_reward=False)
-
-    warmup_vecnormalize(env, num_steps=warmup_steps)
 
     pid = PIDController(kp_long=kp_long, kp_short=kp_short)
     max_tension = TENDON_PARAMS.max_tension
@@ -166,7 +154,7 @@ def collect_demonstrations(num_episodes: int, output_path: str,
 
         episode_rewards.append(ep_reward)
         print(f"Episode {ep + 1}/{num_episodes}: "
-              f"reward={ep_reward:.2f}, steps={ep_transitions}, target={target_pos}")
+              f"reward={ep_reward:.2f}, steps={ep_transitions}, target={target_pos}, tip_pos={current_pos}")
 
     obs_array = np.array(all_obs)
     act_array = np.array(all_actions)
@@ -194,7 +182,7 @@ def collect_demonstrations(num_episodes: int, output_path: str,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-episodes", type=int, default=100)
-    parser.add_argument("--output",       type=str, default="pid_demos.npz")
+    parser.add_argument("--output",       type=str, default="training/demo_data/pid_demos.npz")
     parser.add_argument("--kp-long",      type=float, default=1.0)
     parser.add_argument("--kp-short",     type=float, default=2.0)
     parser.add_argument("--warmup-steps", type=int, default=5000)

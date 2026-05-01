@@ -39,6 +39,14 @@ def run_testing(checkpoint_path: str = None, num_episodes: int = 1):
     print(f"Obs var  (first 10): {env.obs_rms.var[:10]}")
     print(type(model.policy.action_dist))
 
+    # Compare what BC trained vs what predict() outputs
+    import torch
+
+    print(f"Action net weights mean: {model.policy.action_net.weight.data.mean().item():.6f}")
+    print(f"Action net weights std:  {model.policy.action_net.weight.data.std().item():.6f}")
+    print(f"Action net bias:         {model.policy.action_net.bias.data}")
+
+    
     for episode in range(num_episodes):
         obs = env.reset()
         target_pos = np.array(env.get_attr("target_position")[0])
@@ -47,7 +55,7 @@ def run_testing(checkpoint_path: str = None, num_episodes: int = 1):
         counter = 0
 
         while not done:
-            action, _ = model.predict(obs, deterministic=False)
+            action, _ = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action)
             reward = float(reward[0])
             done = bool(done[0])
@@ -56,8 +64,9 @@ def run_testing(checkpoint_path: str = None, num_episodes: int = 1):
             counter += 1
 
             print(f"Step {counter} | Reward: {reward:.4f} | Done: {done}")
-            print(f"Action (raw):    {action}")
             print(f"Action (scaled): {(action + 1.0) / 2.0 * TENDON_PARAMS.max_tension}")
+            print(f"Tip Pos: {env.get_attr("state")}")
+            print(f"Target:  {env.get_attr("target_position")}\n\n")
 
         # Fetch rod data once after episode ends
         rod_data = env.get_attr("callback_data_rod_object")[0].copy()

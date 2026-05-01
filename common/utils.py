@@ -1,5 +1,6 @@
 from numba import njit
 import numpy as np
+from datetime import datetime
 
 def write_errorfile(self, error_type, timestamp_start, state_history, target_position, delta, tip_velocity, action_history, 
                     step_count, callback_data_rod_object):

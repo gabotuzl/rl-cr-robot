@@ -10,7 +10,8 @@ DIST_THRESHOLD       = 0.08    # Goal radius (m) — tip is "at target" below th
 DIST_LINEAR_SLOPE    = -15.0   # Slope of linear region (far from target). Was 16.8.
                                 # Higher → stronger pull toward goal from far away.
 DIST_QUAD_K          = 2000.0  # Curvature of quadratic region (near target). Keep as-is.
-DIST_STABLE_MAX      = 2.5     # Max bonus for holding still inside goal radius
+DIST_STABLE_MAX      = 10.0     # Max bonus for holding still inside goal radius
+SETTLE_DIST_THRESHOLD = 0.03    # Distance at which the tip is considered to be "at target" and will get rewarded for staying still Here
 
 GOAL_DIST_THRESHOLD  = 0.08    # What is considered "reaching" the goal
 GOAL_REACH_BONUS     = 50.0    # Bonus for reaching the goal, happens only once per episode
@@ -180,7 +181,9 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
         # Quadratic bowl — agent is near goal
         distance_reward = DIST_QUAD_K * (dist - t) ** 2
         # Bonus for holding still inside the goal region
-        distance_reward += min(DIST_STABLE_MAX, 20.0 * max(0.0, STABLE_SPEED_MAX - tip_speed))
+        if tip_speed < STABLE_SPEED_MAX and dist < SETTLE_DIST_THRESHOLD:
+            settle_factor = 1.0 - (tip_speed / STABLE_SPEED_MAX)  # ∈ [0, 1]
+            distance_reward += DIST_STABLE_MAX * settle_factor
     else:
         # Linear — agent is far from goal.
         # Intercept chosen so the two pieces share the same value and slope at x_meet.

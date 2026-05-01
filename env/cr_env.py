@@ -193,7 +193,7 @@ class cr_env(Env):
         print('NaN value detected in simulation state, simulation exit.')
         self.nan_counter += 1
 
-        reward = -1.0 # Minimum normalized reward allowed
+        reward = -50.0
 
         # Save information to a text file
         write_errorfile(self, "nan", self.timestamp_start, self.state_history, self.target_position, self.delta, self.tip_velocity, self.action_history, 
@@ -265,10 +265,15 @@ class cr_env(Env):
             info = {'termination_reason': 'max_steps'}
             self.max_steps_counter += 1
 
-        
         self.delta =  self.target_position - self.state 
         delta_prev = self.target_position - self.state_history[-1]
         current_distance = np.linalg.norm(self.delta)
+
+        # Control has collapsed and episode needs to be reset
+        if current_distance > self.L:
+            done = True
+            reward -= 50
+            info = {'termination_reason': 'control_collapse'}
 
         # Computing reward
         reward_scalar, reward_components = compute_reward(dist=current_distance,
