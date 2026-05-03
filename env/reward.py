@@ -241,6 +241,5 @@ def compute_reward(dist, tip_speed, action_curr, action_prev,
     # print(f"best_distance_bonus\t{best_distance_value}")
     # print(f"correct_direction_bonus\t{correct_direction_value}")
     # print(f"goal_reached_value\t{goal_reach_value}")
-    print(f"TIP SPEED\t{tip_speed}")
 
     return reward, components

@@ -19,11 +19,6 @@ class LoggerCallback(BaseCallback):
                 f"Updates: {self.update_counter}"
             )
 
-        if self.n_calls % 1000 == 0:
-            # Mean action over the most recent rollout
-            actions = self.model.rollout_buffer.actions
-            print(f"Action mean: {actions.mean():.4f}, std: {actions.std():.4f}")
-            print(f"Per-tendon mean: {actions.mean(axis=0)}")
 
         return True
 
