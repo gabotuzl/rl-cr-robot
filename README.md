@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/74f8ecc0-320c-4844-ba58-0b7df863add6
+
 # Reinforcement Learning Control of a Tendon-Driven Continuum Robot
 
 Reinforcement learning agent that learns to position the tip of a soft, tendon-driven continuum robot at arbitrary 3D targets within its workspace. Built on PyElastica (Cosserat rod simulation) and Stable-Baselines3 PPO, with behavioural cloning warm-start from a PID controller. The trained agent surpasses the PID baseline.
